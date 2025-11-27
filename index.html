@@ -16,13 +16,12 @@
     // Sequential loader for PyScript (tries several CDN sources)
     (function () {
       const cssCandidates = [
-        "https://cdn.jsdelivr.net/gh/pyscript/pyscript@latest/dist/pyscript.css",
-        "https://unpkg.com/pyscript@latest/dist/pyscript.css"
+        "https://pyscript.net/releases/2024.1.1/core.css",
+        "https://cdn.jsdelivr.net/npm/@pyscript/core@0.4.21/dist/core.css"
       ];
       const jsCandidates = [
-        "https://cdn.jsdelivr.net/gh/pyscript/pyscript@latest/dist/pyscript.js",
-        "https://unpkg.com/pyscript@latest/dist/pyscript.js",
-        "https://pyscript.net/latest/pyscript.js"
+        "https://pyscript.net/releases/2024.1.1/core.js",
+        "https://cdn.jsdelivr.net/npm/@pyscript/core@0.4.21/dist/core.js"
       ];
 
       function loadCss(url) {
