@@ -37,15 +37,18 @@ mkdir -p "$TARGET_DIR"
 echo "Downloading @pyscript/core@$PYSCRIPT_VERSION..."
 cd "$TMP_DIR"
 
-npm pack "@pyscript/core@$PYSCRIPT_VERSION" --silent 2>/dev/null || {
+npm pack "@pyscript/core@$PYSCRIPT_VERSION" --loglevel=error || {
     echo "ERROR: Failed to download @pyscript/core@$PYSCRIPT_VERSION from npm"
     echo "Please check if the version exists at https://www.npmjs.com/package/@pyscript/core"
     exit 1
 }
 
-TARBALL=$(ls pyscript-core-*.tgz 2>/dev/null || ls *.tgz 2>/dev/null | head -1)
+# Find the expected tarball with specific naming pattern
+TARBALL=$(ls pyscript-core-*.tgz 2>/dev/null | head -1)
 if [ -z "$TARBALL" ]; then
-    echo "ERROR: No tarball found after npm pack"
+    echo "ERROR: No tarball found matching 'pyscript-core-*.tgz' after npm pack"
+    echo "Files in directory:"
+    ls -la
     exit 1
 fi
 

@@ -18,65 +18,29 @@
   <link rel="stylesheet" href="./assets/pyscript/core.css" />
 
   <!-- Load local PyScript as ES module -->
-  <script type="module" src="./assets/pyscript/core.js"></script>
+  <script type="module" src="./assets/pyscript/core.js" onerror="document.getElementById('status').innerHTML='<strong>Failed to load PyScript.</strong> Run <code>./vendor_pyscript.sh</code> to download PyScript files.'; document.getElementById('status').classList.add('warn');"></script>
 
   <script>
     /**
      * Simple PyScript Loader Status
      * 
-     * This loader displays status information about PyScript loading.
      * PyScript is loaded from local vendored files (./assets/pyscript/core.js)
      * as an ES module to avoid "Unexpected token 'export'" errors.
+     * Status updates when PyScript initializes and runs the py-script block.
      */
-    (function () {
-      const localCorePath = "./assets/pyscript/core.js";
-      const localCssPath = "./assets/pyscript/core.css";
-
-      /**
-       * Check if a URL exists via fetch (HTTP 200)
-       */
-      async function urlExists(url) {
-        try {
-          const response = await fetch(url, { method: "HEAD" });
-          return response.ok;
-        } catch (e) {
-          return false;
-        }
+    document.addEventListener("DOMContentLoaded", function() {
+      const statusElem = document.getElementById("status");
+      if (statusElem && !statusElem.classList.contains("warn")) {
+        statusElem.innerHTML = "PyScript loaded from: <span class='ok'>./assets/pyscript/core.js</span> (ES module). Initializing...";
+        statusElem.classList.add("ok");
       }
-
-      async function checkStatus() {
-        const statusElem = document.getElementById("status");
-        if (!statusElem) return;
-
-        const coreExists = await urlExists(localCorePath);
-        const cssExists = await urlExists(localCssPath);
-
-        if (coreExists && cssExists) {
-          statusElem.innerHTML = "PyScript loaded from: <span class='ok'>" + localCorePath + "</span> (ES module). Initializing...";
-          statusElem.classList.add("ok");
-          console.info("PyScript files found:", localCorePath, localCssPath);
-        } else if (coreExists) {
-          statusElem.innerHTML = "PyScript JS loaded from: <span class='ok'>" + localCorePath + "</span> (CSS missing).";
-          statusElem.classList.add("warn");
-          console.warn("PyScript CSS not found:", localCssPath);
-        } else {
-          statusElem.innerHTML =
-            "<strong>Unable to load PyScript.</strong><br>" +
-            "Expected local file: <code>" + localCorePath + "</code> (not found)<br><br>" +
-            "Run <code>./vendor_pyscript.sh</code> to download PyScript files, then reload.";
-          statusElem.classList.add("warn");
-          console.error("PyScript core.js not found at", localCorePath);
-        }
-      }
-
-      document.addEventListener("DOMContentLoaded", checkStatus);
-    })();
+    });
   </script>
 </head>
 <body>
 
 <h1>Spooky Ghost Game</h1>
-<div id="status">Loading PyScript runtime (this page will update)...</div>
+<div id="status">Loading PyScript runtime...</div>
 
 <button id="start-btn" disabled>Start Game</button>
 
