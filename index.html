@@ -42,7 +42,7 @@
 <h1>Spooky Ghost Game</h1>
 <div id="status">Loading PyScript runtime...</div>
 
-<button id="start-btn" disabled>Start Game</button>
+<button id="start-btn" disabled py-click="start_game()">Start Game</button>
 
 <div id="output"></div>
 
@@ -55,7 +55,6 @@ packages = []
 # Full game code inserted into start_game(); won't auto-run.
 # Game input/output uses browser prompt and the #output div.
 from js import window, document
-from pyodide import create_proxy
 import random
 import time as time_module
 import string
@@ -930,17 +929,12 @@ def start_game():
     regular(True)
     # End of start_game (full game runs from here)
 
-# Expose start_game to JS and enable the Start button
-start_proxy = create_proxy(start_game)
-window.start_game = start_proxy
-
-# Enable the button in the DOM and hook it to window.start_game
+# Enable the button in the DOM
 def enable_button(evt=None):
     try:
         btn = document.getElementById("start-btn")
         if btn:
             btn.removeAttribute("disabled")
-            btn.addEventListener("click", create_proxy(lambda e: window.start_game()))
     except Exception as e:
         print("Failed to enable start button:", e)
 
