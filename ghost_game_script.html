@@ -653,7 +653,7 @@ def start_game():
             if spaceAvailable is None:
                 print("Your inventory is full!")
                 return regular()
-            stuffTaken = get_input("What item do you want to take? 1 - EMF Reader, 2 - Thermometer, 3 - Spirit Box, 4 - UV Light, 5 - Ghost Writing Book, 6 - DOTS ProjectOR, 7 - Video Camera >").strip()
+            stuffTaken = get_input("What item do you want to take? 1 - EMF Reader, 2 - Thermometer, 3 - Spirit Box, 4 - UV Light, 5 - Ghost Writing Book, 6 - DOTS Projector, 7 - Video Camera >").strip()
             choices = {
                 "1": "EMF Reader",
                 "2": "Thermometer",
@@ -711,7 +711,7 @@ def start_game():
                 case "Garage":
                     print("The room contains a lot of tools and a random Volkswagen Beetle")
                 case "Bathroom":
-                    print("The room contains a collection on highly specific rubber duckies and a variety of soaps. It also has a bath.")
+                    print("The room contains a collection of highly specific rubber duckies and a variety of soaps. It also has a bath.")
                 case "Kid's Bedroom":
                     print("The room contains a model Messerschmitt BF 109 and a lot of other collections like yugioh cards. (It also has child sized clothes and a child sized bed).")
                 case "Dining Room":
@@ -876,7 +876,7 @@ def start_game():
                     return "Entrance Hallway"
                 elif huntActive == True:
                     print("The door is locked.")
-                    return "Entrance Hallway"
+                    return "Truck"
         return currentLocation
 
     def itemUseMenu():
