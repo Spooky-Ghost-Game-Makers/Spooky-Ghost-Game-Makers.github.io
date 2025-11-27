@@ -1,33 +1,51 @@
 # PyScript Vendor Directory
 
-This directory should contain the PyScript runtime files for local/offline use.
+This directory contains the PyScript runtime files for local/offline use.
 
-## Required Files
+## Files
 
-To use the local PyScript bundle, download and place these files here:
+The PyScript distribution files are vendored here from the `@pyscript/core` npm package.
+Key files include:
 
-1. **pyscript.js** - The UMD bundle (can be loaded without `type="module"`)
-2. **pyscript.css** - The stylesheet
+- **core.js** - ES module entry point (must be loaded with `type="module"`)
+- **core.css** - Stylesheet for PyScript components
+- **core-*.js** - Main runtime code
+- Additional chunk files for features like xterm, codemirror, etc.
 
-## How to Download
+## How to Install/Update
 
-Download from the PyScript releases page:
-- https://pyscript.net/releases/2024.1.1/pyscript.js
-- https://pyscript.net/releases/2024.1.1/pyscript.css
+Run the vendor script from the repository root:
 
-Or use curl:
 ```bash
-curl -L "https://pyscript.net/releases/2024.1.1/pyscript.js" -o pyscript.js
-curl -L "https://pyscript.net/releases/2024.1.1/pyscript.css" -o pyscript.css
+./vendor_pyscript.sh
 ```
+
+Or specify a version:
+
+```bash
+./vendor_pyscript.sh 0.4.21
+```
+
+The script will download the PyScript package from npm and extract the `dist/` folder here.
+
+## Usage in HTML
+
+Load PyScript as an ES module (to avoid "Unexpected token 'export'" errors):
+
+```html
+<link rel="stylesheet" href="./assets/pyscript/core.css" />
+<script type="module" src="./assets/pyscript/core.js"></script>
+```
+
+**Important**: The `type="module"` attribute is required because PyScript uses ES modules.
 
 ## Why Use Local Files?
 
 - **Reliability**: CDN outages or blocks won't affect your site
-- **Performance**: Faster loading from same-origin resources
-- **Compatibility**: The UMD bundle avoids ES module loading issues
+- **Performance**: Faster loading from same-origin resources  
+- **No 404 errors**: Avoids issues with missing CDN files
+- **Proper module loading**: Files are correctly served as ES modules
 
-## Fallback Behavior
+## Version
 
-If the local files are not present, the `ghost_game_script.html` loader will automatically
-fall back to loading PyScript from CDN sources with proper ES module handling.
+Current vendored version: **0.4.21** (from @pyscript/core npm package)
