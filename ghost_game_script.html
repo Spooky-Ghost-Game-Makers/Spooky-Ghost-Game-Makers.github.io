@@ -10,67 +10,27 @@
     #status { margin: .5rem 0; color: #b33; }
     .ok { color: #080; }
     .warn { color: #b60; }
+    #start-btn { font-size: 1.2rem; padding: 0.5rem 1.5rem; margin: 1rem 0; cursor: pointer; }
+    #start-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   </style>
+
+  <!-- Load local PyScript CSS -->
+  <link rel="stylesheet" href="./assets/pyscript/core.css" />
+
+  <!-- Load local PyScript as ES module -->
+  <script type="module" src="./assets/pyscript/core.js"></script>
 
   <script>
     /**
-     * Safe PyScript Loader
+     * Simple PyScript Loader Status
      * 
-     * This loader handles different PyScript distribution layouts:
-     * 1. First tries to load local UMD bundle from ./assets/pyscript/pyscript.js
-     * 2. Falls back to CDN ES module with proper type="module" attribute
-     * 
-     * The key fix: ES modules (core.js) must be loaded with type="module",
-     * while UMD bundles (pyscript.js) can be loaded with regular script tags.
+     * This loader displays status information about PyScript loading.
+     * PyScript is loaded from local vendored files (./assets/pyscript/core.js)
+     * as an ES module to avoid "Unexpected token 'export'" errors.
      */
     (function () {
-      // Local vendor paths (UMD bundle - preferred)
-      const localUmdBundle = "./assets/pyscript/pyscript.js";
-      const localUmdCss = "./assets/pyscript/pyscript.css";
-
-      // CDN fallback paths (ES modules - require type="module")
-      const cdnEsModuleCandidates = [
-        {
-          css: "https://pyscript.net/releases/2024.1.1/core.css",
-          js: "https://pyscript.net/releases/2024.1.1/core.js",
-          isModule: true
-        },
-        {
-          css: "https://cdn.jsdelivr.net/npm/@pyscript/core@0.4.21/dist/core.css",
-          js: "https://cdn.jsdelivr.net/npm/@pyscript/core@0.4.21/dist/core.js",
-          isModule: true
-        }
-      ];
-
-      function loadCss(url) {
-        return new Promise((resolve, reject) => {
-          const link = document.createElement("link");
-          link.rel = "stylesheet";
-          link.href = url;
-          link.onload = () => resolve(url);
-          link.onerror = () => reject(url);
-          document.head.appendChild(link);
-        });
-      }
-
-      /**
-       * Load a JavaScript file with proper module handling
-       * @param {string} url - The URL to load
-       * @param {boolean} isModule - Whether to load as ES module (type="module")
-       */
-      function loadJs(url, isModule) {
-        return new Promise((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = url;
-          if (isModule) {
-            script.type = "module";
-          }
-          script.defer = true;
-          script.onload = () => resolve(url);
-          script.onerror = () => reject(url);
-          document.head.appendChild(script);
-        });
-      }
+      const localCorePath = "./assets/pyscript/core.js";
+      const localCssPath = "./assets/pyscript/core.css";
 
       /**
        * Check if a URL exists via fetch (HTTP 200)
@@ -84,79 +44,32 @@
         }
       }
 
-      async function tryLoad() {
-        const statusElem = document.createElement("div");
-        statusElem.id = "status";
-        statusElem.innerText = "Checking for PyScript runtime...";
-        document.addEventListener("DOMContentLoaded", () => {
-          if (document.body) {
-            document.body.insertBefore(statusElem, document.body.firstChild);
-          }
-        });
+      async function checkStatus() {
+        const statusElem = document.getElementById("status");
+        if (!statusElem) return;
 
-        // Step 1: Try local UMD bundle first
-        const localBundleExists = await urlExists(localUmdBundle);
-        
-        if (localBundleExists) {
-          console.info("Found local PyScript bundle at", localUmdBundle);
-          statusElem.innerText = "Loading local PyScript bundle...";
-          
-          try {
-            // Try loading local CSS (optional)
-            const localCssExists = await urlExists(localUmdCss);
-            if (localCssExists) {
-              await loadCss(localUmdCss);
-              console.info("Loaded local PyScript CSS");
-            }
-            
-            // Load local UMD bundle (NOT a module)
-            await loadJs(localUmdBundle, false);
-            statusElem.innerHTML = "PyScript loaded from: <span class='ok'>local bundle (" + localUmdBundle + ")</span>. Initializing...";
-            statusElem.classList.add("ok");
-            console.info("Loaded PyScript from local bundle");
-            return;
-          } catch (e) {
-            console.warn("Local bundle load failed:", e);
-            statusElem.innerText = "Local bundle failed, trying CDN...";
-          }
+        const coreExists = await urlExists(localCorePath);
+        const cssExists = await urlExists(localCssPath);
+
+        if (coreExists && cssExists) {
+          statusElem.innerHTML = "PyScript loaded from: <span class='ok'>" + localCorePath + "</span> (ES module). Initializing...";
+          statusElem.classList.add("ok");
+          console.info("PyScript files found:", localCorePath, localCssPath);
+        } else if (coreExists) {
+          statusElem.innerHTML = "PyScript JS loaded from: <span class='ok'>" + localCorePath + "</span> (CSS missing).";
+          statusElem.classList.add("warn");
+          console.warn("PyScript CSS not found:", localCssPath);
         } else {
-          console.info("Local bundle not found, trying CDN sources...");
-          statusElem.innerText = "Trying to load PyScript runtime from CDNs...";
-        }
-
-        // Step 2: Fall back to CDN ES modules
-        let loaded = false;
-        for (const candidate of cdnEsModuleCandidates) {
-          try {
-            // Load CSS first
-            await loadCss(candidate.css);
-            console.info("Loaded PyScript CSS from", candidate.css);
-            
-            // Load JS with proper module type
-            await loadJs(candidate.js, candidate.isModule);
-            statusElem.innerHTML = "PyScript loaded from: <span class='ok'>" + candidate.js + "</span>" + 
-              (candidate.isModule ? " (ES module)" : "") + ". Initializing...";
-            statusElem.classList.add("ok");
-            console.info("Loaded PyScript JS from", candidate.js, candidate.isModule ? "(ES module)" : "");
-            loaded = true;
-            break;
-          } catch (e) {
-            console.warn("CDN load failed:", candidate.js, e);
-          }
-        }
-
-        if (!loaded) {
           statusElem.innerHTML =
             "<strong>Unable to load PyScript.</strong><br>" +
-            "Tried local bundle: <code>" + localUmdBundle + "</code><br>" +
-            "Tried CDN sources:<br>" +
-            cdnEsModuleCandidates.map(c => "<code>" + c.js + "</code>").join("<br>") +
-            "<br><br>Please check your network connection or ensure the local PyScript files are present in assets/pyscript/.";
+            "Expected local file: <code>" + localCorePath + "</code> (not found)<br><br>" +
+            "Run <code>./vendor_pyscript.sh</code> to download PyScript files, then reload.";
           statusElem.classList.add("warn");
+          console.error("PyScript core.js not found at", localCorePath);
         }
       }
 
-      tryLoad();
+      document.addEventListener("DOMContentLoaded", checkStatus);
     })();
   </script>
 </head>
@@ -164,6 +77,8 @@
 
 <h1>Spooky Ghost Game</h1>
 <div id="status">Loading PyScript runtime (this page will update)...</div>
+
+<button id="start-btn" disabled>Start Game</button>
 
 <div id="output"></div>
 
@@ -173,10 +88,33 @@ packages = []
 
 <!-- PyScript game content -->
 <py-script>
-# Minimal smoke-test print — replace with your full game block if you copied it in
 from js import window, document
-document.getElementById("output").innerText += "PyScript runtime loaded — executing game code...\n"
-# (Place your revised game code here or keep it in this file — once PyScript is loaded it will run.)
+
+def log(msg):
+    """Append a message to the output div."""
+    output = document.getElementById("output")
+    output.innerText += msg + "\n"
+
+def start_game():
+    """Main game entry point - called when Start Game button is clicked."""
+    log("=== Spooky Ghost Game Started ===")
+    log("Welcome, brave soul!")
+    log("")
+    log("You find yourself in a haunted mansion...")
+    log("The door creaks shut behind you.")
+    log("")
+    log("(Game prompts will appear here)")
+    log("(Replace this with your full game logic)")
+
+# Initialize page
+log("PyScript runtime loaded — ready to play!")
+
+# Enable the start button and wire up the click handler
+start_btn = document.getElementById("start-btn")
+start_btn.disabled = False
+start_btn.onclick = lambda e: start_game()
+
+log("Click 'Start Game' to begin.")
 </py-script>
 
 </body>
