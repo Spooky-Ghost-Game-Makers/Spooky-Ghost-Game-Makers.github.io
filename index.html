@@ -17,22 +17,60 @@
   <!-- Load local PyScript CSS -->
   <link rel="stylesheet" href="./assets/pyscript/core.css" />
 
-  <!-- Load local PyScript as ES module -->
-  <script type="module" src="./assets/pyscript/core.js" onerror="document.getElementById('status').innerHTML='<strong>Failed to load PyScript.</strong> Run <code>./vendor_pyscript.sh</code> to download PyScript files.'; document.getElementById('status').classList.add('warn');"></script>
+  <!-- Robust PyScript loader:
+       - Try to import the local ES module for PyScript.
+       - If that fails, fall back to loading the official PyScript from the CDN.
+  -->
+  <script>
+    (function() {
+      const statusElem = document.getElementById ? document.getElementById('status') : null;
+
+      function setStatus(html, cls) {
+        if (!statusElem) return;
+        statusElem.innerHTML = html;
+        statusElem.classList.remove('ok', 'warn');
+        if (cls) statusElem.classList.add(cls);
+      }
+
+      // Attempt to dynamically import the vendored ES module first.
+      (async function tryLocalThenCdn() {
+        try {
+          // dynamic import of local ES module (works in browsers that support modules)
+          await import('./assets/pyscript/core.js');
+          setStatus("PyScript loaded from: <span class='ok'>./assets/pyscript/core.js</span> (ES module). Initializing...", 'ok');
+        } catch (localErr) {
+          console.warn('Local PyScript ES module failed to load:', localErr);
+          setStatus("<strong>Failed to load local PyScript (./assets/pyscript/core.js).</strong> Falling back to official CDN...", 'warn');
+
+          // Fallback: load PyScript from the CDN as a non-module script.
+          const s = document.createElement('script');
+          s.src = 'https://pyscript.net/latest/pyscript.js';
+          s.defer = true;
+          s.onload = function() {
+            setStatus("PyScript loaded from CDN: <span class='ok'>https://pyscript.net/latest/pyscript.js</span>", 'ok');
+          };
+          s.onerror = function() {
+            console.error('Failed to load PyScript from CDN');
+            setStatus("<strong>Failed to load PyScript runtime from CDN as well.</strong> Check console for details.", 'warn');
+          };
+          document.head.appendChild(s);
+        }
+      })();
+    })();
+  </script>
 
   <script>
     /**
      * Simple PyScript Loader Status
-     * 
-     * PyScript is loaded from local vendored files (./assets/pyscript/core.js)
-     * as an ES module to avoid "Unexpected token 'export'" errors.
+     *
      * Status updates when PyScript initializes and runs the py-script block.
+     * Note: actual enabling of the Start button is handled inside the py-script
+     * code (enable_button), but the loader above ensures the runtime is present.
      */
     document.addEventListener("DOMContentLoaded", function() {
       const statusElem = document.getElementById("status");
       if (statusElem && !statusElem.classList.contains("warn")) {
-        statusElem.innerHTML = "PyScript loaded from: <span class='ok'>./assets/pyscript/core.js</span> (ES module). Initializing...";
-        statusElem.classList.add("ok");
+        statusElem.innerHTML = "Loading PyScript runtime...";
       }
     });
   </script>
@@ -298,7 +336,7 @@ def start_game():
                 else:
                     print("You look around the room with the camera, but you find nothing.")
             else:
-                print("You look around the room with the camera, but find nothing.")
+                print("You look around the room with the camera, but you find nothing.")
         else:
             print("You look around the room with the camera, but you find nothing.")
         regular()
@@ -629,7 +667,7 @@ def start_game():
         if pawWishes != 0:
             wishCategory = get_int("What sort of wish do you want to make? 1> A wish related to the ghost 2> A miscelaneous wish 3> A special wish 4> No wish ", default=4)
             if wishCategory == 1:
-                wish = get_int("What do you wish the ghost to do? 1> Wish for the ghost to pause 2> Wish for the ghost to move 3> Wish to stop the ghost from moving 4> No wish 5> Ask what each wish does >", default=4)
+                wish = get_int("What do you wish the ghost to do? 1> Wish for the ghost to pause 2> Wish for the ghost to move 3> Wish to stop the ghost from moving 4> No wish 5> Ask what each wi[...]
             elif wishCategory == 2:
                 wish = get_int("What would you like to wish? 1> Wish for knowledge 2> Wish for sanity 3> Wish to leave 4> no wish 5> Ask what each wish does ", default=4)
             elif wishCategory == 3:
@@ -652,7 +690,7 @@ def start_game():
             if spaceAvailable is None:
                 print("Your inventory is full!")
                 return regular()
-            stuffTaken = get_input("What item do you want to take? 1 - EMF Reader, 2 - Thermometer, 3 - Spirit Box, 4 - UV Light, 5 - Ghost Writing Book, 6 - DOTS Projector, 7 - Video Camera >").strip()
+            stuffTaken = get_input("What item do you want to take? 1 - EMF Reader, 2 - Thermometer, 3 - Spirit Box, 4 - UV Light, 5 - Ghost Writing Book, 6 - DOTS Projector, 7 - Video Camera >").[...]
             choices = {
                 "1": "EMF Reader",
                 "2": "Thermometer",
@@ -726,7 +764,7 @@ def start_game():
                 case "Entrance Hallway":
                     print("The room is just a hallway. It has a lot of doors that lead to other rooms.")
                 case "Truck":
-                    print("You are in the truck. Nothing special here, just the items you have brung with you for the ghost hunting. You take a look outside, the weather is currently:", randomPicker9000("weather"), ".")
+                    print("You are in the truck. Nothing special here, just the items you have brung with you for the ghost hunting. You take a look outside, the weather is currently:", randomPic[...]
             if location == "Truck":
                 truckDeny()
             if hidingPlaces.get(location) and hidingPlaces[location][0] == "yes" and hidingPlaces[location][1] == False:
