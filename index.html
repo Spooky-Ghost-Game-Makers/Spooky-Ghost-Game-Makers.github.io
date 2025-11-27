@@ -111,7 +111,7 @@
             
             // Load local UMD bundle (NOT a module)
             await loadJs(localUmdBundle, false);
-            statusElem.innerHTML = "PyScript loaded from: <span class='ok'>local bundle (" + localUmdBundle + ")</span>. Initialising...";
+            statusElem.innerHTML = "PyScript loaded from: <span class='ok'>local bundle (" + localUmdBundle + ")</span>. Initializing...";
             statusElem.classList.add("ok");
             console.info("Loaded PyScript from local bundle");
             return;
@@ -135,7 +135,7 @@
             // Load JS with proper module type
             await loadJs(candidate.js, candidate.isModule);
             statusElem.innerHTML = "PyScript loaded from: <span class='ok'>" + candidate.js + "</span>" + 
-              (candidate.isModule ? " (ES module)" : "") + ". Initialising...";
+              (candidate.isModule ? " (ES module)" : "") + ". Initializing...";
             statusElem.classList.add("ok");
             console.info("Loaded PyScript JS from", candidate.js, candidate.isModule ? "(ES module)" : "");
             loaded = true;
