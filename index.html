@@ -2,111 +2,58 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Spooky Ghost Game</title>
+  <title>Spooky Ghost Game (PyScript)</title>
 
   <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; padding: 1rem; }
-    #status { margin: .5rem 0; color: #b33; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding: 1rem; }
     #output { white-space: pre-wrap; border: 1px solid #ddd; padding: 1rem; margin-top: 1rem; max-height: 60vh; overflow: auto; background:#fafafa;}
-    #controls { margin-top: 0.5rem; }
-    button { padding: 0.5rem 1rem; font-size: 1rem; }
-    code { background:#f4f4f4; padding:2px 4px; border-radius:3px; }
+    #status { margin: .5rem 0; color: #b33; }
+    .ok { color: #080; }
+    .warn { color: #b60; }
+    #start-btn { font-size: 1.2rem; padding: 0.5rem 1.5rem; margin: 1rem 0; cursor: pointer; }
+    #start-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   </style>
 
+  <!-- Load local PyScript CSS -->
+  <link rel="stylesheet" href="./assets/pyscript/core.css" />
+
+  <!-- Load local PyScript as ES module -->
+  <script type="module" src="./assets/pyscript/core.js" onerror="document.getElementById('status').innerHTML='<strong>Failed to load PyScript.</strong> Run <code>./vendor_pyscript.sh</code> to download PyScript files.'; document.getElementById('status').classList.add('warn');"></script>
+
   <script>
-    // Loader: attempt to load pyscript.js (bundle) first; otherwise load core.js as module.
-    (function () {
-      function setStatus(html) {
-        var s = document.getElementById("status");
-        if (!s) {
-          s = document.createElement("div");
-          s.id = "status";
-          document.body.insertBefore(s, document.body.firstChild);
-        }
-        s.innerHTML = html;
+    /**
+     * Simple PyScript Loader Status
+     * 
+     * PyScript is loaded from local vendored files (./assets/pyscript/core.js)
+     * as an ES module to avoid "Unexpected token 'export'" errors.
+     * Status updates when PyScript initializes and runs the py-script block.
+     */
+    document.addEventListener("DOMContentLoaded", function() {
+      const statusElem = document.getElementById("status");
+      if (statusElem && !statusElem.classList.contains("warn")) {
+        statusElem.innerHTML = "PyScript loaded from: <span class='ok'>./assets/pyscript/core.js</span> (ES module). Initializing...";
+        statusElem.classList.add("ok");
       }
-
-      async function exists(url) {
-        try {
-          const res = await fetch(url, { method: "HEAD" });
-          return res.ok;
-        } catch (e) {
-          return false;
-        }
-      }
-
-      async function tryLoad() {
-        setStatus("Checking for local PyScript runtime in <code>./assets/pyscript/</code> ...");
-        const cssUrl = "./assets/pyscript/pyscript.css";
-        const jsBundleUrl = "./assets/pyscript/pyscript.js";
-        const coreModuleUrl = "./assets/pyscript/core.js";
-
-        if (await exists(cssUrl)) {
-          const link = document.createElement("link");
-          link.rel = "stylesheet";
-          link.href = cssUrl;
-          document.head.appendChild(link);
-          setStatus("Found <code>pyscript.css</code>.");
-        }
-
-        if (await exists(jsBundleUrl)) {
-          const s = document.createElement("script");
-          s.src = jsBundleUrl;
-          s.defer = true;
-          s.onload = () => setStatus("PyScript loaded from local bundle: <code>" + jsBundleUrl + "</code>");
-          s.onerror = () => setStatus("Failed to load local bundle: <code>" + jsBundleUrl + "</code>");
-          document.head.appendChild(s);
-          return;
-        }
-
-        if (await exists(coreModuleUrl)) {
-          const s = document.createElement("script");
-          s.src = coreModuleUrl;
-          s.type = "module"; // IMPORTANT: load as module to avoid 'export' parse error
-          s.defer = true;
-          s.onload = () => setStatus("PyScript module loaded from: <code>" + coreModuleUrl + "</code>");
-          s.onerror = () => setStatus("Failed to load local module: <code>" + coreModuleUrl + "</code>");
-          document.head.appendChild(s);
-          return;
-        }
-
-        setStatus(
-          "<strong>PyScript not found in ./assets/pyscript/</strong>.<br>" +
-          "Run <code>./vendor_pyscript.sh</code> locally to populate <code>assets/pyscript/</code>, or copy the release <code>dist/</code> contents there.<br>" +
-          "Looking for: <br><code>" + jsBundleUrl + "</code><br><code>" + coreModuleUrl + "</code>"
-        );
-      }
-
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", tryLoad);
-      } else {
-        tryLoad();
-      }
-    })();
+    });
   </script>
 </head>
 <body>
 
 <h1>Spooky Ghost Game</h1>
-<div id="status">Loading PyScript runtime (this page will update)...</div>
+<div id="status">Loading PyScript runtime...</div>
 
-<div id="controls">
-  <button id="startBtn" disabled>Start Game</button>
-  <span id="hint" style="margin-left:.5rem;color:#666">Start is enabled once PyScript / Pyodide initializes.</span>
-</div>
+<button id="start-btn" disabled py-click="start_game()">Start Game</button>
 
-<div id="output" aria-live="polite"></div>
+<div id="output"></div>
 
 <py-config>
 packages = []
 </py-config>
 
-<!--
-  <py-script> block: full game at module level.
-  Important: DO NOT import create_proxy or attempt to attach Python-created JS callbacks.
-  Provide a top-level start_game() that JS can call using whichever runner is available (pyodide.runPython/runPythonAsync or pyscript.runPython).
--->
+<!-- PyScript game content -->
 <py-script>
+# Full game code inserted into start_game(); won't auto-run.
+# Game input/output uses browser prompt and the #output div.
 from js import window, document
 import random
 import time as time_module
@@ -116,31 +63,18 @@ import string
 out_elem = document.getElementById("output")
 
 def write(s=""):
-    try:
-        out_elem.innerText = out_elem.innerText + str(s) + ("\n" if not str(s).endswith("\n") else "")
-        out_elem.scrollTop = out_elem.scrollHeight
-    except Exception:
-        try:
-            # fallback to console if #output not present
-            print(s)
-        except Exception:
-            pass
+    out_elem.innerText = out_elem.innerText + str(s) + ("\n" if not str(s).endswith("\n") else "")
+    out_elem.scrollTop = out_elem.scrollHeight
 
-def print_(*args, sep=" ", end="\n"):
+def print(*args, sep=" ", end="\n"):
     text = sep.join(str(a) for a in args) + ("" if end == "" else end)
     write(text)
 
-# Provide 'print' name for compatibility with original code
-print = print_
-
 def get_input(msg="> "):
-    try:
-        res = window.prompt(msg)
-        if res is None:
-            return ""
-        return res.strip()
-    except Exception:
+    res = window.prompt(msg)
+    if res is None:
         return ""
+    return res.strip()
 
 def get_int(msg="> ", default=0):
     while True:
@@ -149,549 +83,126 @@ def get_int(msg="> ", default=0):
             return default
         try:
             return int(res)
-        except Exception:
+        except:
             print("Please enter a valid number.")
 
-# -------------------------
-# Game data and helpers (top-level)
-# -------------------------
-booleanThing = ["yes", "no"]
-
-def randomPicker9000(randomy):
-    global ghost, ghostRoom, weather, cursedItem, ghostName, hidingPlaces
-    if randomy == True:
-        ghostRoom = random.choice(rooms)
-        ghost = random.choice(ghosts)[0]
-        weather = random.choice(weathers)
-        cursedItem = random.choice(cursedItems)
-        ghostName = random.choice(firstNames) + " " + random.choice(lastNames)
-        hidingPlaces = {
-            "Entrance Hallway": [random.choice(booleanThing), False],
-            "Kid's Bedroom": [random.choice(booleanThing), False],
-            "Garage": [random.choice(booleanThing), False],
-            "Dining Room": [random.choice(booleanThing), False],
-            "Kitchen": [random.choice(booleanThing), False],
-            "Basement": [random.choice(booleanThing), False],
-            "Living Room": [random.choice(booleanThing), False],
-            "Master Bedroom": [random.choice(booleanThing), False],
-            "Bathroom": [random.choice(booleanThing), False],
-            "En Suite": [random.choice(booleanThing), False]
-        }
-    elif randomy == "name":
-        return ghostName
-    elif randomy == "room":
-        return ghostRoom
-    elif randomy == "ghost":
-        return ghost
-    elif randomy == "weather":
-        return weather
-    elif randomy == "cursedItem":
-        return cursedItem
-
-roomSizes = {
-    "Entrance Hallway": [3, 15],
-    "Kid's Bedroom": [8,8],
-    "Garage": [11, 9],
-    "Dining Room": [8, 10],
-    "Kitchen": [8,10],
-    "Basement": [10, 15],
-    "Living Room": [8,8],
-    "Master Bedroom": [8,9],
-    "Bathroom": [5,5],
-    "En Suite": [5,5]
-}
-
-rooms = ["Entrance Hallway", "Kid's Bedroom", "Garage", "Dining Room", "Kitchen", "Basement", "Living Room",
-         "Master Bedroom", "Bathroom", "En Suite", "Truck"]
-
-hidingPlaces = {}
-
-weathers = ["Clear", "Rain", "Snow", "Sunny"]
-
-cursedItems = ["Monkey Paw", "Music Box", "Voodoo Doll", "Magic Mirror", "Summoning Circle", "Tarot Cards",
-               "Ouija Board"]
-
-firstNames = ["Adam", "Alex", "Andrew", "Benjamin", "Christopher", "Daniel", "David", "Duck", "Edward", "Eric", "George",
-              "Jack", "James", "John", "Joseph", "Kevin", "Mark", "Michael", "Paul", "Peter", "Robert", "Ronald",
-              "Steven", "Tom", "William", "Alice", "Annabelle", "Barbara", "Betty", "Carol", "Donna", "Elizabeth",
-              "Helen", "Jennifer", "Karen", "Linda", "Lisa", "Margaret", "Mary", "Nancy", "Patricia", "Ruth", "Sandra",
-              "Sarah", "Susan", "Caleb"]
-
-lastNames = ["Alexander", "Anderson", "Bailey", "Baker", "Barber", "Barton", "Bellfield", "Birch", "Bishop", "Bowen",
-             "Brock", "Brooks", "Brown", "Buckley", "Carey", "Carter", "Clark", "Clarke", "Cordero", "Corrigan",
-             "Davis", "Dexter", "Dixon", "Doe", "Douglas", "Dyer", "Elliott", "Emmett", "Everly", "Gacy", "Garcia",
-             "Gayton", "Halstead", "Hans", "Harris", "Hill", "Holland", "Holmes", "Huntley", "Jackson", "Johnson",
-             "Jones", "Kemper", "Knight", "Kraft", "Kray", "Lancaster", "Lavender", "Lee", "Lewis", "Manson", "Marsh",
-             "Martin", "Martinez", "Maudsley", "Miller", "Mills", "Moore", "Myers", "Nilsen", "Norris", "Pettit",
-             "Phillips", "Price", "Ramirez", "Rhoades", "Roberts", "Robinson", "Rook", "Roswell", "Schelin", "Shawcross",
-             "Sherman", "Shipman", "Skinner", "Smith", "Stevens", "Straffen", "Sweeney", "Taylor", "Thomas", "Thompson",
-             "Todd", "Walker", "Watts", "West", "White", "Williams", "Wilson", "Winter", "Wright", "Young"]
-
-ghosts = [["Spirit", "EMF5", "Spirit Box", "Ghost Writing"],
-          ["Poltergeist", "UV", "Spirit Box", "Ghost Writing"],
-          ["The Mimic", "Ghost Orbs", "Spirit Box", "Freezing Temps", "UV"],
-          ["Thaye", "DOTS", "Ghost Orbs", "Ghost Writing"],
-          ["Oni", "DOTS", "EMF5", "Freezing Temps"],
-          ["Obake", "UV", "Ghost Orbs", "EMF5"],
-          ["Demon", "Ghost Writing", "Freezing Temps", "UV"],
-          ["Phantom", "Spirit Box", "DOTS", "UV"],
-          ["Goryo", "DOTS", "UV", "EMF5"],
-          ["Banshee", "Ghost Orbs", "UV", "DOTS"],
-          ["Wraith", "DOTS", "EMF5", "Spirit Box"],
-          ["Revenant", "Freezing Temps", "Ghost Writing", "Ghost Orbs"],
-          ["Hantu", "Freezing Temps", "UV", "Ghost Orbs"],
-          ["Mare", "Ghost Orbs", "Spirit Box", "Ghost Writing"],
-          ["Jinn", "UV", "Freezing Temps", "EMF5"],
-          ["Onryo", "Spirit Box", "Ghost Orbs", "Freezing Temps"],
-          ["Yokai", "Ghost Orbs", "DOTS", "Spirit Box"],
-          ["Yurei", "Ghost Orbs", "DOTS", "Freezing Temps"],
-          ["Deogen", "Ghost Writing", "Spirit Box", "DOTS"],
-          ["Raiju", "DOTS", "Ghost Orbs", "EMF5"],
-          ["Moroi", "Spirit Box", "Freezing Temps", "Ghost Writing"],
-          ["Myling", "UV", "EMF5", "Ghost Writing"],
-          ["The Twins", "EMF5", "Spirit Box", "Freezing Temps"],
-          ["Shade", "EMF5", "Freezing Temps", "Ghost Writing"]]
-
-equipment = [["Thermometer", "", "Freezing Temps"],
-             ["EMF Reader", 3, "EMF5"],
-             ["Video Camera", "", "Ghost Orbs"],
-             ["Spirit Box", 3, "Spirit Box"],
-             ["Ultraviolet Light", 2, "UV"],
-             ["Ghost Writing Book", 3, "Ghost Writing"],
-             ["DOTS Projector", 5, "DOTS"]]
-
-roomDrawings = {"Entrance Hallway": [[]], "Kid's Bedroom": [[]], "Garage": [[]], "Dining Room": [[]], "Kitchen": [[]], "Basement": [[]], "Living Room": [[]],
-         "Master Bedroom": [[]], "Bathroom": [[]], "En Suite": [[]]}
-
-# Module-level state
-ghost = ""
-ghostRoom = ""
-weather = ""
-cursedItem = ""
-ghostName = ""
-ghostLocationRoom = ""
-location = "Truck"
-gameTime = 0
-events = 0
-playerInventory = ["", "", ""]
-ouijaEvents = 0
-musicEvents = 0
-mirrorEvents = 0
-huntActive = False
-isHiding = False
-truckStuff = []
-huntTurnsRemaining = 0
-huntGhostType = None
-huntIsCursed = False
-
-# -------------------------
-# Game functions (kept from original source)
-# -------------------------
-def cursedItemSpawn(cursedItemParam):
-    if cursedItemParam == "Monkey Paw":
-        return "Dining Room"
-    elif cursedItemParam == "Tarot Cards":
-        return "Living Room"
-    elif cursedItemParam == "Magic Mirror":
-        return "Entrance Hallway"
-    elif cursedItemParam == "Music Box":
-        return "Kid's Bedroom"
-    elif cursedItemParam == "Voodoo Doll":
-        return "Garage"
-    elif cursedItemParam == "Ouija Board":
-        return "Basement"
-    elif cursedItemParam == "Summoning Circle":
-        return "Kitchen"
-
-def temperatures():
-    if randomPicker9000("weather") == "Clear":
-        tempWeatherEffect = 0
-    elif randomPicker9000("weather") == "Rain":
-        tempWeatherEffect = 3
-    elif randomPicker9000("weather") == "Snow":
-        tempWeatherEffect = 7
-    elif randomPicker9000("weather") == "Sunny":
-        tempWeatherEffect = -2
-    if ghostLocationRoom == location:
-        tempWeatherEffect = 13
-    for row in ghosts:
-        if randomPicker9000("ghost") in row:
-            if "Freezing Temps" in row:
-                tempWeatherEffect = 20
-    averageTemp = 17 - tempWeatherEffect
-    tempFlux = random.randrange(-2,2)
-    return (averageTemp + tempFlux)
-
-def thermometer():
-    print("The temperature it reads is: ", temperatures())
-    regular()
-
-def UV():
-    obj = random.choice(["window", "door"])
-    if ghostLocationRoom == location:
-        UVChance = random.randint(0,2)
-        if UVChance == 0:
-            for row in ghosts:
-                if randomPicker9000("ghost") in row:
-                    if "UV" in row:
-                        print("You look around the room with a UV light, and you see a spooky looking handprint on a", obj + ".")
-                    else:
-                        print("You look around the room with a UV light, but you find nothing.")
-                    break
-            else:
-                print("You look around the room with a UV light, but you find nothing.")
-        else:
-            print("You look around the room with the UV light, but find nothing.")
-    else:
-        print("You look around the room with a UV light, but you find nothing.")
-    regular()
-
-def videoCamera():
-    if ghostLocationRoom == location:
-        orbsChance = random.randint(0,1)
-        if orbsChance == 0:
-            for row in ghosts:
-                if randomPicker9000("ghost") in row:
-                    if "Ghost Orbs" in row:
-                        print("You look around the room with the camera, and you see a small glowing sphere dancing around the room.")
-                    else:
-                        print("You look around the room with the camera, but you find nothing.")
-                    break
-            else:
-                print("You look around the room with the camera, but you find nothing.")
-        else:
-            print("You look around the room with the camera, but you find nothing.")
-    else:
-        print("You look around the room with the camera, but you find nothing.")
-    regular()
-
-def roomDraw(width, height, draw=True, roomParam=None):
-    if roomParam is None:
-        roomParam = location
-    if not roomDrawings.get(roomParam) or not roomDrawings[roomParam] or not roomDrawings[roomParam][0]:
-        roomDrawings[roomParam] = [[" " for _ in range(width)] for _ in range(height)]
-    if draw:
-        print("   " + " ".join(str(i) for i in range(1, width + 1)))
-        for i, row in enumerate(roomDrawings[roomParam]):
-            label = string.ascii_uppercase[i]
-            print(f"{label}: " + " ".join(row))
-
-def coordinates(width, height):
-    letterToNumber = {letter: i + 1 for i, letter in enumerate(string.ascii_uppercase)}
-    while True:
-        coords = get_input("Enter coordinates of placement (e.g., A5) > ").strip()
-        if len(coords) < 2:
-            print("Invalid format. Example: A5")
-            continue
-        rowLetter = coords[0].upper()
-        columnPart = coords[1:]
-        if rowLetter not in letterToNumber:
-            print("Invalid row letter. Must be A–Z.")
-            continue
-        row = letterToNumber[rowLetter]
-        if not columnPart.isdigit():
-            print("Column must be a number.")
-            continue
-        col = int(columnPart)
-        if row < 1 or row > height:
-            print(f"Row out of range. Must be A to {string.ascii_uppercase[height-1]}.")
-            continue
-        if col < 1 or col > width:
-            print(f"Column out of range. Must be 1 to {width}.")
-            continue
-        return [row - 1, col - 1]
-
-def itemLetter(item):
-    match item:
-        case "Ghost Writing Book":
-            return "B"
-        case "DOTS Projector":
-            return "D"
-        case "EMF Reader":
-            return "E"
-        case _:
-            return "I"
-
-def itemPlace():
-    roomParam = location
-    items = inventoryCheck("Raw List")
-    print("What item do you want to place down?")
-    for i in range(3):
-        if items[i] != "":
-            print(f"Slot {i+1} - {items[i]}")
-    choice = get_input("> ").strip()
-    if choice not in ["1", "2", "3"]:
-        print("Invalid slot.")
-        return regular()
-    choice_idx = int(choice) - 1
-    if items[choice_idx] == "":
-        print("Slot is empty.")
-        return regular()
-    itemToPlace = items[choice_idx]
-    if itemToPlace not in ["EMF Reader", "Ghost Writing Book", "DOTS Projector"]:
-        print("You cannot place this item.")
-        return regular()
-    height, width = roomSizes[roomParam]
-    roomDraw(width, height)
-    coords = coordinates(width, height)
-    letter = itemLetter(itemToPlace)
-    try:
-        roomDrawings[roomParam][coords[0]][coords[1]] = letter
-    except IndexError:
-        print("Placement failed due to grid bounds error.")
-        return regular()
-    playerInventory[choice_idx] = ""
-    tick(True)
-    print(f"Placed {itemToPlace} at {string.ascii_uppercase[coords[0]]}{coords[1]+1}")
-    roomDraw(width, height)
-    return regular()
-
-def die():
-    print("You feel a hand lying on your shoulder, you quickly turn around to find a blank room.")
-    time_module.sleep(1.5)
-    print("You suddenly feel a sharp pain in your neck, and you start choking. The spooky ghost got you. Game Over.")
-    raise SystemExit("Game Over")
-
-def hunt(ghostType=None, cursed=False):
-    global ghostLocationRoom, huntActive, huntTurnsRemaining, huntGhostType, huntIsCursed
-    if ghostType is None:
-        ghostType = ghost
-    huntActive = True
-    huntGhostType = ghostType
-    huntIsCursed = cursed
-    huntTurnsRemaining = 10 if cursed else 5
-    print("All the lights flicker and all of the equipment in the room begins to malfunction in a flurry of beeps and boops. A hunt has begun.")
-    regular()
-
-def processHunt():
-    global ghostLocationRoom, huntActive, huntTurnsRemaining, isHiding, huntGhostType
-    if not huntActive:
-        return
-    if huntGhostType != "Deogen":
-        ghostLocationRoom = random.choice(rooms)
-    else:
-        ghostLocationRoom = location
-    if ghostLocationRoom == location:
-        chanceToDie = random.randint(0, 2)
-        if chanceToDie == 0:
-            if isHiding == False:
-                die()
-            elif isHiding == True:
-                print("The ghost walks past you, it didn't see you hide.")
-    huntTurnsRemaining -= 1
-    if huntTurnsRemaining <= 0:
-        print("The lights go back to normal, the hunt is over.")
-        ghostLocationRoom = randomPicker9000("room")
-        huntActive = False
-
-def inventoryCheck(check):
-    if check == "List":
-        print("You have: ", playerInventory[0], ", ", playerInventory[1], ",", playerInventory[2], ".")
-    if check == "Raw List":
-        returnList = [playerInventory[0], playerInventory[1], playerInventory[2]]
-        return returnList
-    if check == "Space":
-        for idx, item in enumerate(playerInventory):
-            if item == "":
-                return idx
-        return None
-
-def checkForHidingSpot():
-    global isHiding
-    if hidingPlaces.get(location) and "yes" in hidingPlaces[location]:
-        if hidingPlaces[location][1] == True:
-            choice = get_input("There is a hiding spot in this room, would you like to hide? (Y/N)>")
-            if choice.lower() == "y":
-                print("You are now hiding.")
-                isHiding = True
-                return True
-            else:
-                print("You don't hide. You note the hiding spot for later.")
-                return False
-    elif hidingPlaces.get(location) and "no" in hidingPlaces[location]:
-        print("You have not found a hiding spot or the lack there of in this room yet. Inspect it first.")
-    return False
-
-def huntChance():
-    if ghost == "Demon":
-        chance = random.randint(0, 3)
-    elif ghost == "Thaye":
-        if sanityCheck(False) < 75:
-            chance = random.randint(0, 4)
-        else:
-            return False
-    elif ghost == "Raiju":
-        if sanityCheck(False) < 65:
-            chance = random.randint(0, 4)
-        else:
-            return False
-    elif ghost == "Shade":
-        if sanityCheck(False) < 35:
-            chance = random.randint(0, 6)
-        else:
-            return False
-    elif ghost == "Deogen":
-        if sanityCheck(False) < 40:
-            chance = random.randint(0, 4)
-        else:
-            return False
-    elif ghost == "Banshee":
-        if sanityCheck(False) < 55:
-            chance = random.randint(0, 4)
-        else:
-            return False
-    elif ghost == "Onryo":
-        if sanityCheck(False) < 60:
-            chance = random.randint(0, 4)
-        else:
-            return False
-    else:
-        if sanityCheck(False) < 50:
-            chance = random.randint(0, 4)
-        else:
-            return False
-    if chance == 0:
-        return True
-    return False
-
-def tick(doTick):
-    global gameTime
-    if doTick == True:
-        gameTime += 1
-        if huntActive == True:
-            processHunt()
-        if huntChance() == True and not huntActive:
-            hunt()
-    return gameTime
-
-def ghostAge(ghostType, check):
-    global age, ghost
-    if check == True:
-        age = random.randint(40, 90)
-        if ghostType == "Thaye":
-            age = age + tick(False)
-    return age
-
-def sanityCheck(event):
-    global ouijaEvents, musicEvents, mirrorEvents
-    if event == False:
-        sanity = 100 - (tick(False) + (events * 5) + (ouijaEvents * 15) + (musicEvents * 20) + (mirrorEvents * 25))
-        if sanity < 0:
-            sanity = 0
-        return sanity
-    elif event == "Ouija":
-        ouijaEvents += 1
-    elif event == "Music Box":
-        musicEvents += 1
-    elif event == "Magic Mirror":
-        mirrorEvents += 1
-
-def ouija():
-    global ouijaEvents
-    sanityCheck("Ouija")
-    tick(True)
-    question = get_input("What do you want to say to the ghost? >")
-    response = ("The ghost says: " + str(ouijaBoard(question)))
-    print(response)
-    choice1 = get_input("Do you want to ask another question? Y/N >")
-    if choice1.lower() == "y":
-        ouija()
-    else:
-        return
-
-def ouijaBoard(question):
-    ghostLoc = randomPicker9000("room")
-    name = randomPicker9000("name")
-    q = question.lower()
-    if "old" in q:
-        return ghostAge(ghost, False)
-    elif "age" in q:
-        return ghostAge(ghost, False)
-    elif "name" in q:
-        return name
-    elif "room" in q:
-        return ghostLoc
-    elif "where" in q:
-        return ghostLoc
-    elif "crazy" in q:
-        return sanityCheck(False)
-    elif "sane" in q:
-        return sanityCheck(False)
-    elif "sanity" in q:
-        return sanityCheck(False)
-    elif "seek" in q:
-        hunt(randomPicker9000("ghost"), True)
-        return "The ghost has been summoned to seek."
-    else:
-        return "The ghost is silent."
-
-def musicBox():
-    global musicEvents
-    sanityCheck("Music Box")
-    tick(True)
-    print("The song is soothing, and somewhat creepy. Your hand is forced to turn its coil.")
-    if location == ghostLocationRoom:
-        if ghost != "The Twins":
-            boxVoice = random.randint(0, 2)
-            if boxVoice == 0:
-                print("You hear what sounds like a man's voice close by. The lid to the music box slams shut and the manifestation of a ghost starts to form before you.")
-                hunt()
-            elif boxVoice == 1:
-                print("You hear a woman's voice as a cold hand slams the box out of your hand. (Top Tip!: Run)")
-                hunt()
-            else:
-                print("You hear very menacing quacking as an evil spirit holding a duck appears before you.")
-        else:
-            print("You hear two voices echo in the room you stand. A ghost approaches you with murderous intent")
-            hunt()
-    else:
-        print("You hear the distant echo of a strange voice")
-
-def voodoo():
-    tick(True)
-    print("You push in a pin on the doll.")
-    chance = random.randint(0, 2)
-    if chance == 0:
-        hunt(ghost, False)
-
-def magicMirror():
-    sanityCheck("Magic Mirror")
-    tick(True)
-    print("You gaze into the mirror with a duck sticker on its back and it shows you the ghosts surroundings")
-    match randomPicker9000("room"):
-        case "Living Room":
-            print("The room contains sofas, TVs and a nice looking fireplace.")
-        case "Garage":
-            print("The room contains a lot of tools and a random Volkswagen Beetle")
-        case "Bathroom":
-            print("The room contains a collection on highly specific rubber duckies and a variety of soaps. It also has a bath.")
-        case "Kid's Bedroom":
-            print("The room contains a rubber ducky on the shelf and a lot of other collections like yugioh cards. (It also has child sized clothes and a child sized bed).")
-        case "Dining Room":
-            print("The room contains a large table decorated with plates and an empty vase.")
-        case "Kitchen":
-            print("The room contains a variety of cooking appliances and many sharp knife shaped objects.")
-        case "Basement":
-            print("The room features a lot of loose wires and a variety of boxes containing stuff.")
-        case "Master Bedroom":
-            print("The room features a giant bed and a small entrance to a small bathroom. It is a massive bedroom.")
-        case "En suite":
-            print("The room is small, yet it is significantly cleaner than its larger counterpart")
-        case "Entrance Hallway":
-            print("The room is just a hallway. It has a lot of doors that lead to other rooms. Its literally where you found this mirror.")
-
-# ... The rest of the original game functions remain the same as in your source code
-# For brevity in this message, assume the full function bodies from your repo are present here
-# (When you paste, keep the existing functions exactly as in your source.)
-#
-# Initialize helpers and state in start_game:
+# The entire adapted game is wrapped in start_game so it runs only on button press.
 def start_game():
-    global ghost, ghostRoom, weather, cursedItem, ghostName, hidingPlaces
-    global ghostLocationRoom, location, gameTime, events, playerInventory
-    global ouijaEvents, musicEvents, mirrorEvents, huntActive, isHiding, truckStuff
-    global huntTurnsRemaining, huntGhostType, huntIsCursed
+    # --- game data ---
+    booleanThing = ["yes", "no"]
 
-    # Initialize random values and state
+    def randomPicker9000(randomy):
+        nonlocal ghost, ghostRoom, weather, cursedItem, ghostName, hidingPlaces
+        if randomy == True:
+            ghostRoom = random.choice(rooms)
+            ghost = random.choice(ghosts)[0]
+            weather = random.choice(weathers)
+            cursedItem = random.choice(cursedItems)
+            ghostName = random.choice(firstNames) + " " + random.choice(lastNames)
+            hidingPlaces = {
+                "Entrance Hallway": [random.choice(booleanThing), False],
+                "Kid's Bedroom": [random.choice(booleanThing), False],
+                "Garage": [random.choice(booleanThing), False],
+                "Dining Room": [random.choice(booleanThing), False],
+                "Kitchen": [random.choice(booleanThing), False],
+                "Basement": [random.choice(booleanThing), False],
+                "Living Room": [random.choice(booleanThing), False],
+                "Master Bedroom": [random.choice(booleanThing), False],
+                "Bathroom": [random.choice(booleanThing), False],
+                "En Suite": [random.choice(booleanThing), False]
+            }
+        elif randomy == "name":
+            return ghostName
+        elif randomy == "room":
+            return ghostRoom
+        elif randomy == "ghost":
+            return ghost
+        elif randomy == "weather":
+            return weather
+        elif randomy == "cursedItem":
+            return cursedItem
+
+    roomSizes = {
+        "Entrance Hallway": [3, 15],
+        "Kid's Bedroom": [8,8],
+        "Garage": [11, 9],
+        "Dining Room": [8, 10],
+        "Kitchen": [8,10],
+        "Basement": [10, 15],
+        "Living Room": [8,8],
+        "Master Bedroom": [8,9],
+        "Bathroom": [5,5],
+        "En Suite": [5,5]
+    }
+
+    rooms = ["Entrance Hallway", "Kid's Bedroom", "Garage", "Dining Room", "Kitchen", "Basement", "Living Room",
+             "Master Bedroom", "Bathroom", "En Suite", "Truck"]
+
+    hidingPlaces = {}
+
+    weathers = ["Clear", "Rain", "Snow", "Sunny"]
+
+    cursedItems = ["Monkey Paw", "Music Box", "Voodoo Doll", "Magic Mirror", "Summoning Circle", "Tarot Cards",
+                   "Ouija Board"]
+
+    firstNames = ["Adam", "Alex", "Andrew", "Benjamin", "Christopher", "Daniel", "David", "Duck", "Edward", "Eric", "George",
+                  "Jack", "James", "John", "Joseph", "Kevin", "Mark", "Michael", "Paul", "Peter", "Robert", "Ronald",
+                  "Steven", "Tom", "William", "Alice", "Annabelle", "Barbara", "Betty", "Carol", "Donna", "Elizabeth",
+                  "Helen", "Jennifer", "Karen", "Linda", "Lisa", "Margaret", "Mary", "Nancy", "Patricia", "Ruth", "Sandra",
+                  "Sarah", "Susan", "Caleb"]
+
+    lastNames = ["Alexander", "Anderson", "Bailey", "Baker", "Barber", "Barton", "Bellfield", "Birch", "Bishop", "Bowen",
+                 "Brock", "Brooks", "Brown", "Buckley", "Carey", "Carter", "Clark", "Clarke", "Cordero", "Corrigan",
+                 "Davis", "Dexter", "Dixon", "Doe", "Douglas", "Dyer", "Elliott", "Emmett", "Everly", "Gacy", "Garcia",
+                 "Gayton", "Halstead", "Hans", "Harris", "Hill", "Holland", "Holmes", "Huntley", "Jackson", "Johnson",
+                 "Jones", "Kemper", "Knight", "Kraft", "Kray", "Lancaster", "Lavender", "Lee", "Lewis", "Manson", "Marsh",
+                 "Martin", "Martinez", "Maudsley", "Miller", "Mills", "Moore", "Myers", "Nilsen", "Norris", "Pettit",
+                 "Phillips", "Price", "Ramirez", "Rhoades", "Roberts", "Robinson", "Rook", "Roswell", "Schelin", "Shawcross",
+                 "Sherman", "Shipman", "Skinner", "Smith", "Stevens", "Straffen", "Sweeney", "Taylor", "Thomas", "Thompson",
+                 "Todd", "Walker", "Watts", "West", "White", "Williams", "Wilson", "Winter", "Wright", "Young"]
+
+    ghosts = [["Spirit", "EMF5", "Spirit Box", "Ghost Writing"],
+              ["Poltergeist", "UV", "Spirit Box", "Ghost Writing"],
+              ["The Mimic", "Ghost Orbs", "Spirit Box", "Freezing Temps", "UV"],
+              ["Thaye", "DOTS", "Ghost Orbs", "Ghost Writing"],
+              ["Oni", "DOTS", "EMF5", "Freezing Temps"],
+              ["Obake", "UV", "Ghost Orbs", "EMF5"],
+              ["Demon", "Ghost Writing", "Freezing Temps", "UV"],
+              ["Phantom", "Spirit Box", "DOTS", "UV"],
+              ["Goryo", "DOTS", "UV", "EMF5"],
+              ["Banshee", "Ghost Orbs", "UV", "DOTS"],
+              ["Wraith", "DOTS", "EMF5", "Spirit Box"],
+              ["Revenant", "Freezing Temps", "Ghost Writing", "Ghost Orbs"],
+              ["Hantu", "Freezing Temps", "UV", "Ghost Orbs"],
+              ["Mare", "Ghost Orbs", "Spirit Box", "Ghost Writing"],
+              ["Jinn", "UV", "Freezing Temps", "EMF5"],
+              ["Onryo", "Spirit Box", "Ghost Orbs", "Freezing Temps"],
+              ["Yokai", "Ghost Orbs", "DOTS", "Spirit Box"],
+              ["Yurei", "Ghost Orbs", "DOTS", "Freezing Temps"],
+              ["Deogen", "Ghost Writing", "Spirit Box", "DOTS"],
+              ["Raiju", "DOTS", "Ghost Orbs", "EMF5"],
+              ["Moroi", "Spirit Box", "Freezing Temps", "Ghost Writing"],
+              ["Myling", "UV", "EMF5", "Ghost Writing"],
+              ["The Twins", "EMF5", "Spirit Box", "Freezing Temps"],
+              ["Shade", "EMF5", "Freezing Temps", "Ghost Writing"]]
+
+    equipment = [["Thermometer", "", "Freezing Temps"],
+                 ["EMF Reader", 3, "EMF5"],
+                 ["Video Camera", "", "Ghost Orbs"],
+                 ["Spirit Box", 3, "Spirit Box"],
+                 ["Ultraviolet Light", 2, "UV"],
+                 ["Ghost Writing Book", 3, "Ghost Writing"],
+                 ["DOTS Projector", 5, "DOTS"]]
+
+    roomDrawings = {"Entrance Hallway": [[]], "Kid's Bedroom": [[]], "Garage": [[]], "Dining Room": [[]], "Kitchen": [[]], "Basement": [[]], "Living Room": [[]],
+             "Master Bedroom": [[]], "Bathroom": [[]], "En Suite": [[]]}
+
+    # Variables and initial randomization
+    ghost = ""
+    ghostRoom = ""
+    weather = ""
+    cursedItem = ""
+    ghostName = ""
     randomPicker9000(True)
     ghostLocationRoom = randomPicker9000("room")
     location = "Truck"
@@ -707,85 +218,728 @@ def start_game():
     huntTurnsRemaining = 0
     huntGhostType = None
     huntIsCursed = False
+    age = 0
 
-    # Ghost age init
+    # helper functions and game logic (shortened for brevity here in the explanation)
+    # The full code from the code repo is inserted below, preserving all functions and game flow.
+    # -- full game functions start --
+
+    # returns spawn location of cursed item put in.
+    def cursedItemSpawn(cursedItemParam):
+        if cursedItemParam == "Monkey Paw":
+            return "Dining Room"
+        elif cursedItemParam == "Tarot Cards":
+            return "Living Room"
+        elif cursedItemParam == "Magic Mirror":
+            return "Entrance Hallway"
+        elif cursedItemParam == "Music Box":
+            return "Kid's Bedroom"
+        elif cursedItemParam == "Voodoo Doll":
+            return "Garage"
+        elif cursedItemParam == "Ouija Board":
+            return "Basement"
+        elif cursedItemParam == "Summoning Circle":
+            return "Kitchen"
+
+    def temperatures():
+        if randomPicker9000("weather") == "Clear":
+            tempWeatherEffect = 0
+        elif randomPicker9000("weather") == "Rain":
+            tempWeatherEffect = 3
+        elif randomPicker9000("weather") == "Snow":
+            tempWeatherEffect = 7
+        elif randomPicker9000("weather") == "Sunny":
+            tempWeatherEffect = -2
+        if ghostLocationRoom == location:
+            tempWeatherEffect = 13
+        for row in ghosts:
+            if randomPicker9000("ghost") in row:
+                if "Freezing Temps" in row:
+                    tempWeatherEffect = 20
+        averageTemp = 17 - tempWeatherEffect
+        tempFlux = random.randrange(-2,2)
+        return (averageTemp + tempFlux)
+
+    def thermometer():
+        print("The temperature it reads is: ", temperatures())
+        regular()
+
+    def UV():
+        obj = random.choice(["window", "door"])
+        if ghostLocationRoom == location:
+            UVChance = random.randint(0,2)
+            if UVChance == 0:
+                for row in ghosts:
+                    if randomPicker9000("ghost") in row:
+                        if "UV" in row:
+                            print("You look around the room with a UV light, and you see a spooky looking handprint on a", obj + ".")
+                        else:
+                            print("You look around the room with a UV light, but you find nothing.")
+                        break
+                else:
+                    print("You look around the room with a UV light, but you find nothing.")
+            else:
+                print("You look around the room with the UV light, but find nothing.")
+        else:
+            print("You look around the room with a UV light, but you find nothing.")
+        regular()
+
+    def videoCamera():
+        if ghostLocationRoom == location:
+            orbsChance = random.randint(0,1)
+            if orbsChance == 0:
+                for row in ghosts:
+                    if randomPicker9000("ghost") in row:
+                        if "Ghost Orbs" in row:
+                            print("You look around the room with the camera, and you see a small glowing sphere dancing around the room.")
+                        else:
+                            print("You look around the room with the camera, but you find nothing.")
+                        break
+                else:
+                    print("You look around the room with the camera, but you find nothing.")
+            else:
+                print("You look around the room with the camera, but find nothing.")
+        else:
+            print("You look around the room with the camera, but you find nothing.")
+        regular()
+
+    def roomDraw(width, height, draw=True, roomParam=None):
+        nonlocal roomDrawings
+        if roomParam is None:
+            roomParam = location
+        if not roomDrawings.get(roomParam) or not roomDrawings[roomParam] or not roomDrawings[roomParam][0]:
+            roomDrawings[roomParam] = [[" " for _ in range(width)] for _ in range(height)]
+        if draw:
+            print("   " + " ".join(str(i) for i in range(1, width + 1)))
+            for i, row in enumerate(roomDrawings[roomParam]):
+                label = string.ascii_uppercase[i]
+                print(f"{label}: " + " ".join(row))
+
+    def coordinates(width, height):
+        letterToNumber = {letter: i + 1 for i, letter in enumerate(string.ascii_uppercase)}
+        while True:
+            coords = get_input("Enter coordinates of placement (e.g., A5) > ").strip()
+            if len(coords) < 2:
+                print("Invalid format. Example: A5")
+                continue
+            rowLetter = coords[0].upper()
+            columnPart = coords[1:]
+            if rowLetter not in letterToNumber:
+                print("Invalid row letter. Must be A–Z.")
+                continue
+            row = letterToNumber[rowLetter]
+            if not columnPart.isdigit():
+                print("Column must be a number.")
+                continue
+            col = int(columnPart)
+            if row < 1 or row > height:
+                print(f"Row out of range. Must be A to {string.ascii_uppercase[height-1]}.")
+                continue
+            if col < 1 or col > width:
+                print(f"Column out of range. Must be 1 to {width}.")
+                continue
+            return [row - 1, col - 1]
+
+    def itemLetter(item):
+        match item:
+            case "Ghost Writing Book":
+                return "B"
+            case "DOTS Projector":
+                return "D"
+            case "EMF Reader":
+                return "E"
+            case _:
+                return "I"
+
+    def itemPlace():
+        nonlocal playerInventory, roomDrawings
+        roomParam = location
+        items = inventoryCheck("Raw List")
+        print("What item do you want to place down?")
+        for i in range(3):
+            if items[i] != "":
+                print(f"Slot {i+1} - {items[i]}")
+        choice = get_input("> ").strip()
+        if choice not in ["1", "2", "3"]:
+            print("Invalid slot.")
+            return regular()
+        choice_idx = int(choice) - 1
+        if items[choice_idx] == "":
+            print("Slot is empty.")
+            return regular()
+        itemToPlace = items[choice_idx]
+        if itemToPlace not in ["EMF Reader", "Ghost Writing Book", "DOTS Projector"]:
+            print("You cannot place this item.")
+            return regular()
+        height, width = roomSizes[roomParam]
+        roomDraw(width, height)
+        coords = coordinates(width, height)
+        letter = itemLetter(itemToPlace)
+        try:
+            roomDrawings[roomParam][coords[0]][coords[1]] = letter
+        except IndexError:
+            print("Placement failed due to grid bounds error.")
+            return regular()
+        playerInventory[choice_idx] = ""
+        tick(True)
+        print(f"Placed {itemToPlace} at {string.ascii_uppercase[coords[0]]}{coords[1]+1}")
+        roomDraw(width, height)
+        return regular()
+
+    def die():
+        print("You feel a hand lying on your shoulder, you quickly turn around to find a blank room.")
+        time_module.sleep(1.5)
+        print("You suddenly feel a sharp pain in your neck, and you start choking. The spooky ghost got you. Game Over.")
+        raise SystemExit("Game Over")
+
+    def hunt(ghostType=None, cursed=False):
+        nonlocal ghostLocationRoom, huntActive, huntTurnsRemaining, huntGhostType, huntIsCursed
+        if ghostType is None:
+            ghostType = ghost
+        huntActive = True
+        huntGhostType = ghostType
+        huntIsCursed = cursed
+        huntTurnsRemaining = 10 if cursed else 5
+        print("All the lights flicker and all of the equipment in the room begins to malfunction in a flurry of beeps and boops. A hunt has begun.")
+        regular()
+
+    def processHunt():
+        nonlocal ghostLocationRoom, huntActive, huntTurnsRemaining, isHiding, huntGhostType
+        if not huntActive:
+            return
+
+        if huntGhostType != "Deogen":
+            ghostLocationRoom = random.choice(rooms)
+        else:
+            ghostLocationRoom = location
+
+        if ghostLocationRoom == location:
+            chanceToDie = random.randint(0, 2)
+            if chanceToDie == 0:
+                if isHiding == False:
+                    die()
+                elif isHiding == True:
+                    print("The ghost walks past you, it didn't see you hide.")
+
+        huntTurnsRemaining -= 1
+        if huntTurnsRemaining <= 0:
+            print("The lights go back to normal, the hunt is over.")
+            ghostLocationRoom = randomPicker9000("room")
+            huntActive = False
+
+    def inventoryCheck(check):
+        if check == "List":
+            print("You have: ", playerInventory[0], ", ", playerInventory[1], ",", playerInventory[2], ".")
+        if check == "Raw List":
+            returnList = [playerInventory[0], playerInventory[1], playerInventory[2]]
+            return returnList
+        if check == "Space":
+            for idx, item in enumerate(playerInventory):
+                if item == "":
+                    return idx
+            return None
+
+    def checkForHidingSpot():
+        nonlocal isHiding
+        if hidingPlaces.get(location) and "yes" in hidingPlaces[location]:
+            if hidingPlaces[location][1] == True:
+                choice = get_input("There is a hiding spot in this room, would you like to hide? (Y/N)>")
+                if choice.lower() == "y":
+                    print("You are now hiding.")
+                    isHiding = True
+                    return True
+                else:
+                    print("You don't hide. You note the hiding spot for later.")
+                    return False
+        elif hidingPlaces.get(location) and "no" in hidingPlaces[location]:
+            print("You have not found a hiding spot or the lack there of in this room yet. Inspect it first.")
+        return False
+
+    def huntChance():
+        if ghost == "Demon":
+            chance = random.randint(0, 3)
+        elif ghost == "Thaye":
+            if sanityCheck(False) < 75:
+                chance = random.randint(0, 4)
+            else:
+                return False
+        elif ghost == "Raiju":
+            if sanityCheck(False) < 65:
+                chance = random.randint(0, 4)
+            else:
+                return False
+        elif ghost == "Shade":
+            if sanityCheck(False) < 35:
+                chance = random.randint(0, 6)
+            else:
+                return False
+        elif ghost == "Deogen":
+            if sanityCheck(False) < 40:
+                chance = random.randint(0, 4)
+            else:
+                return False
+        elif ghost == "Banshee":
+            if sanityCheck(False) < 55:
+                chance = random.randint(0, 4)
+            else:
+                return False
+        elif ghost == "Onryo":
+            if sanityCheck(False) < 60:
+                chance = random.randint(0, 4)
+            else:
+                return False
+        else:
+            if sanityCheck(False) < 50:
+                chance = random.randint(0, 4)
+            else:
+                return False
+        if chance == 0:
+            return True
+        return False
+
+    def tick(doTick):
+        nonlocal gameTime
+        if doTick == True:
+            gameTime += 1
+            if huntActive == True:
+                processHunt()
+            if huntChance() == True and not huntActive:
+                hunt()
+        return gameTime
+
+    def ghostAge(ghostType, check):
+        nonlocal age, ghost
+        if check == True:
+            age = random.randint(40, 90)
+            if ghostType == "Thaye":
+                age = age + tick(False)
+        return age
+
+    def sanityCheck(event):
+        nonlocal ouijaEvents, musicEvents, mirrorEvents
+        if event == False:
+            sanity = 100 - (tick(False) + (events * 5) + (ouijaEvents * 15) + (musicEvents * 20) + (mirrorEvents * 25))
+            if sanity < 0:
+                sanity = 0
+            return sanity
+        elif event == "Ouija":
+            ouijaEvents += 1
+        elif event == "Music Box":
+            musicEvents += 1
+        elif event == "Magic Mirror":
+            mirrorEvents += 1
+
+    def ouija():
+        nonlocal ouijaEvents
+        sanityCheck("Ouija")
+        tick(True)
+        question = get_input("What do you want to say to the ghost? >")
+        response = ("The ghost says: " + str(ouijaBoard(question)))
+        print(response)
+        choice1 = get_input("Do you want to ask another question? Y/N >")
+        if choice1.lower() == "y":
+            ouija()
+        else:
+            return
+
+    def ouijaBoard(question):
+        ghostLoc = randomPicker9000("room")
+        name = randomPicker9000("name")
+        q = question.lower()
+        if "old" in q:
+            return ghostAge(ghost, False)
+        elif "age" in q:
+            return ghostAge(ghost, False)
+        elif "name" in q:
+            return name
+        elif "room" in q:
+            return ghostLoc
+        elif "where" in q:
+            return ghostLoc
+        elif "crazy" in q:
+            return sanityCheck(False)
+        elif "sane" in q:
+            return sanityCheck(False)
+        elif "sanity" in q:
+            return sanityCheck(False)
+        elif "seek" in q:
+            hunt(randomPicker9000("ghost"), True)
+            return "The ghost has been summoned to seek."
+        else:
+            return "The ghost is silent."
+
+    def musicBox():
+        nonlocal musicEvents
+        sanityCheck("Music Box")
+        tick(True)
+        print("The song is soothing, and somewhat creepy. Your hand is forced to turn its coil.")
+        if location == ghostLocationRoom:
+            if ghost != "The Twins":
+                boxVoice = random.randint(0, 2)
+                if boxVoice == 0:
+                    print("You hear what sounds like a man's voice close by. The lid to the music box slams shut and the manifestation of a ghost starts to form before you.")
+                    hunt()
+                elif boxVoice == 1:
+                    print("You hear a woman's voice as a cold hand slams the box out of your hand. (Top Tip!: Run)")
+                    hunt()
+                else:
+                    print("You hear very menacing quacking as an evil spirit holding a duck appears before you.")
+            else:
+                print("You hear two voices echo in the room you stand. A ghost approaches you with murderous intent")
+                hunt()
+        else:
+            print("You hear the distant echo of a strange voice")
+
+    def voodoo():
+        tick(True)
+        print("You push in a pin on the doll.")
+        chance = random.randint(0, 2)
+        if chance == 0:
+            hunt(ghost, False)
+
+    def magicMirror():
+        sanityCheck("Magic Mirror")
+        tick(True)
+        print("You gaze into the mirror with a duck sticker on its back and it shows you the ghosts surroundings")
+        match randomPicker9000("room"):
+            case "Living Room":
+                print("The room contains sofas, TVs and a nice looking fireplace.")
+            case "Garage":
+                print("The room contains a lot of tools and a random Volkswagen Beetle")
+            case "Bathroom":
+                print("The room contains a collection on highly specific rubber duckies and has a variety of soaps. It also has a bath.")
+            case "Kid's Bedroom":
+                print("The room contains a rubber ducky on the shelf and a lot of other collections like yugioh cards. (It also has child sized clothes and a child sized bed).")
+            case "Dining Room":
+                print("The room contains a large table decorated with plates and an empty vase.")
+            case "Kitchen":
+                print("The room contains a variety of cooking appliances and many sharp knife shaped objects.")
+            case "Basement":
+                print("The room features a lot of loose wires and a variety of boxes containing stuff.")
+            case "Master Bedroom":
+                print("The room features a giant bed and a small entrance to a small bathroom. It is a massive bedroom.")
+            case "En suite":
+                print("The room is small, yet it is significantly cleaner than its larger counterpart")
+            case "Entrance Hallway":
+                print("The room is just a hallway. It has a lot of doors that lead to other rooms. Its literally where you found this mirror.")
+
+    pawWishes = 3
+    def monkeyPaw():
+        nonlocal pawWishes
+        if pawWishes != 0:
+            wishCategory = get_int("What sort of wish do you want to make? 1> A wish related to the ghost 2> A miscelaneous wish 3> A special wish 4> No wish ", default=4)
+            if wishCategory == 1:
+                wish = get_int("What do you wish the ghost to do? 1> Wish for the ghost to pause 2> Wish for the ghost to move 3> Wish to stop the ghost from moving 4> No wish 5> Ask what each wish does >", default=4)
+            elif wishCategory == 2:
+                wish = get_int("What would you like to wish? 1> Wish for knowledge 2> Wish for sanity 3> Wish to leave 4> no wish 5> Ask what each wish does ", default=4)
+            elif wishCategory == 3:
+                wish = get_int("What would you like to wish? 1> Wish for a hunt 2> Wish to end the game 3> Wish for a duck 4> no wish 5> Ask what each wish does ", default=4)
+            else:
+                print("You place the monkey paw down")
+
+    def monkeyWish(wishCategory, wish):
+        if wishCategory == 1 and wish == 1:
+            pass
+
+    def truck():
+        nonlocal truckStuff, playerInventory
+        truckStuff = ["EMF Reader", "Thermometer", "Spirit Box", "UV Light", "Ghost Writing Book", "DOTS Projector",
+                      "Video Camera"]
+        print("Current items in the truck: ", truckStuff)
+        done = False
+        while not done:
+            spaceAvailable = inventoryCheck("Space")
+            if spaceAvailable is None:
+                print("Your inventory is full!")
+                return regular()
+            stuffTaken = get_input("What item do you want to take? 1 - EMF Reader, 2 - Thermometer, 3 - Spirit Box, 4 - UV Light, 5 - Ghost Writing Book, 6 - DOTS Projector, 7 - Video Camera >").strip()
+            choices = {
+                "1": "EMF Reader",
+                "2": "Thermometer",
+                "3": "Spirit Box",
+                "4": "UV Light",
+                "5": "Ghost Writing Book",
+                "6": "DOTS Projector",
+                "7": "Video Camera"
+            }
+            picked = choices.get(stuffTaken)
+            if picked and picked in truckStuff:
+                playerInventory[spaceAvailable] = picked
+                truckStuff.remove(picked)
+                print(f"Took {picked} (slot {spaceAvailable+1}).")
+            else:
+                print("Item not available or invalid choice.")
+            done1 = get_input("Do you want to take another item? Y/N >").strip()
+            if done1.lower() == "n" or done1 == "":
+                done = True
+        return regular()
+
+    def truckDeny():
+        print("You cannot do this right now, as you are in the truck outside.")
+        regular()
+
+    def regular(showLocation=True):
+        nonlocal location, isHiding, ghostLocationRoom
+        if showLocation:
+            print("You are currently in", location)
+        if huntActive == True:
+            print("Reminder: There is a hunt going on.")
+        if isHiding == True:
+            choice1 = get_input("You are currently hiding in " + location + ", would you like to leave the hiding spot? (Y/N) >")
+            if choice1.lower() == "y":
+                isHiding = False
+                print("You leave your hiding spot.")
+                regular()
+                return
+            else:
+                print("So be it. You stay in the spot and wait for a short while.")
+                tick(True)
+                if ghostLocationRoom == location:
+                    print("You hear footsteps walking past.")
+                regular()
+                return
+        choice = get_input("What do you want to do? (Type help for help) >")
+        if choice.lower() == "help":
+            print("Possible Things to do: Move, Place Item, Use item, Inspect Room, Hide, Wait, Pickup Item (If in the truck).")
+            regular(False)
+        elif "inspect" in choice.lower():
+            tick(True)
+            match location:
+                case "Living Room":
+                    print("The room contains sofas, TVs and a nice looking fireplace.")
+                case "Garage":
+                    print("The room contains a lot of tools and a random Volkswagen Beetle")
+                case "Bathroom":
+                    print("The room contains a collection of highly specific rubber duckies and a variety of soaps. It also has a bath.")
+                case "Kid's Bedroom":
+                    print("The room contains a model Messerschmitt BF 109 and a lot of other collections like yugioh cards. (It also has child sized clothes and a child sized bed).")
+                case "Dining Room":
+                    print("The room contains a large table decorated with plates and an empty vase.")
+                case "Kitchen":
+                    print("The room contains a variety of cooking appliances and many sharp knife shaped objects.")
+                case "Basement":
+                    print("The room features a lot of loose wires and a variety of boxes containing stuff.")
+                case "Master Bedroom":
+                    print("The room features a giant bed and a small entrance to a small bathroom. It is a massive bedroom.")
+                case "En Suite":
+                    print("The room is small, yet it is significantly cleaner than its larger counterpart")
+                case "Entrance Hallway":
+                    print("The room is just a hallway. It has a lot of doors that lead to other rooms.")
+                case "Truck":
+                    print("You are in the truck. Nothing special here, just the items you have brung with you for the ghost hunting. You take a look outside, the weather is currently:", randomPicker9000("weather"), ".")
+            if location == "Truck":
+                truckDeny()
+            if hidingPlaces.get(location) and hidingPlaces[location][0] == "yes" and hidingPlaces[location][1] == False:
+                hidingPlaces[location][1] = True
+                print("You spot a hiding place.")
+            elif hidingPlaces.get(location) and hidingPlaces[location][0] == "no" and hidingPlaces[location][1] == False:
+                hidingPlaces[location][1] = "Nope"
+                print("There doesn't seem to be any good hiding spots here.")
+            if location == cursedItemSpawn(randomPicker9000("cursedItem")):
+                print(f"You notice a {randomPicker9000('cursedItem')} in this room!")
+            regular(False)
+        elif "hide" in choice.lower():
+            if location == "Truck":
+                truckDeny()
+            checkForHidingSpot()
+            regular(False)
+        elif "move" in choice.lower():
+            location = movement(location)
+            regular(True)
+        elif "wait" in choice.lower():
+            tick(True)
+            print("You wait for a moment...")
+            regular(False)
+        elif "place" in choice.lower():
+            if location == "Truck":
+                truckDeny()
+            itemPlace()
+        elif "use" in choice.lower():
+            if location == "Truck":
+                truckDeny()
+            itemUseMenu()
+        elif "pick" in choice.lower():
+            truck()
+        else:
+            print("Invalid action.")
+            regular(False)
+
+    def movement(currentLocation):
+        nonlocal isHiding
+        if isHiding == True:
+            print("You leave your hiding spot and go into the room.")
+            isHiding = False
+            return currentLocation
+        match currentLocation:
+            case "Entrance Hallway":
+                moveChoice = get_int("Where do you want to move to? 1 - Kid's Bedroom, 2 - Living Room, 3 - Bathroom, 4 - Truck>", default=4)
+                match moveChoice:
+                    case 1:
+                        tick(True); return "Kid's Bedroom"
+                    case 2:
+                        tick(True); return "Living Room"
+                    case 3:
+                        tick(True); return "Bathroom"
+                    case 4:
+                        tick(True); return "Truck"
+            case "Kid's Bedroom":
+                moveChoice = get_int("Where do you want to move to? 1 - Entrance Hallway, 2 - Bathroom >", default=1)
+                match moveChoice:
+                    case 1:
+                        tick(True); return "Entrance Hallway"
+                    case 2:
+                        tick(True); return "Bathroom"
+            case "Bathroom":
+                moveChoice = get_int("Where do you want to move to? 1 - Kid's Bedroom, 2 - Entrance Hallway >", default=1)
+                match moveChoice:
+                    case 1:
+                        tick(True); return "Kid's Bedroom"
+                    case 2:
+                        tick(True); return "Entrance Hallway"
+            case "Living Room":
+                moveChoice = get_int("Where do you want to move to? 1 - Basement, 2 - Master Bedroom, 3 - Garage, 4 - Dining room, 5 - Kitchen, 6 - Entrance Hallway >", default=6)
+                match moveChoice:
+                    case 1:
+                        tick(True); return "Basement"
+                    case 2:
+                        tick(True); return "Master Bedroom"
+                    case 3:
+                        tick(True); return "Garage"
+                    case 4:
+                        tick(True); return "Dining Room"
+                    case 5:
+                        tick(True); return "Kitchen"
+                    case 6:
+                        tick(True); return "Entrance Hallway"
+            case "Basement":
+                moveChoice = get_int("Where do you want to move to? 1 - Living Room, 2 - Garage, 3 - Kitchen, 4 - Dining Room >", default=1)
+                match moveChoice:
+                    case 1:
+                        tick(True); return "Living Room"
+                    case 2:
+                        tick(True); return "Garage"
+                    case 3:
+                        tick(True); return "Kitchen"
+                    case 4:
+                        tick(True); return "Dining Room"
+            case "Garage":
+                moveChoice = get_int("Where do you want to move to? 1 - Living Room, 2 - Basement, 3 - Kitchen, 4 - Dining Room >", default=1)
+                match moveChoice:
+                    case 1:
+                        tick(True); return "Living Room"
+                    case 2:
+                        tick(True); return "Basement"
+                    case 3:
+                        tick(True); return "Kitchen"
+                    case 4:
+                        tick(True); return "Dining Room"
+            case "Dining Room":
+                moveChoice = get_int("Where do you want to move to? 1 - Living Room, 2 - Kitchen, 3 - Garage, 4 - Basement >", default=1)
+                match moveChoice:
+                    case 1:
+                        tick(True); return "Living Room"
+                    case 2:
+                        tick(True); return "Kitchen"
+                    case 3:
+                        tick(True); return "Garage"
+                    case 4:
+                        tick(True); return "Basement"
+            case "Kitchen":
+                moveChoice = get_int("Where do you want to move to? 1 - Living Room, 2 - Dining Room, 3 - Garage, 4 - Basement >", default=1)
+                match moveChoice:
+                    case 1:
+                        tick(True); return "Living Room"
+                    case 2:
+                        tick(True); return "Dining Room"
+                    case 3:
+                        tick(True); return "Garage"
+                    case 4:
+                        tick(True); return "Basement"
+            case "Master Bedroom":
+                moveChoice = get_int("Where do you want to move to? 1 - Living Room, 2 - En Suite, 3 - Entrance Hallway >", default=1)
+                match moveChoice:
+                    case 1:
+                        tick(True); return "Living Room"
+                    case 2:
+                        tick(True); return "En Suite"
+                    case 3:
+                        tick(True); return "Entrance Hallway"
+            case "En Suite":
+                print("You move to the master bedroom.")
+                tick(True)
+                return "Master Bedroom"
+            case "Truck":
+                if huntActive == False:
+                    print("You move to the entrance hallway.")
+                    tick(True)
+                    return "Entrance Hallway"
+                elif huntActive == True:
+                    print("The door is locked.")
+                    return "Truck"
+        return currentLocation
+
+    def itemUseMenu():
+        itemList = []
+        itemsAvailableToUse = ["Thermometer", "Ultraviolet Light", "EMF Reader", "Video Camera", "Spirit Box"]
+        for item in playerInventory:
+            if item in itemsAvailableToUse:
+                itemList.append(item)
+        if itemList:
+            print("You can use:")
+            for index, item in enumerate(itemList, start=1):
+                print(index, "-", item)
+            itemChoice = get_int("Which item would you like to use? (Enter a number) > ", default=1)
+            if 1 <= itemChoice <= len(itemList):
+                itemUsed = itemList[itemChoice - 1]
+                tick(True)
+                if itemUsed == "Thermometer":
+                    thermometer()
+                elif itemUsed == "Ultraviolet Light":
+                    UV()
+                elif itemUsed == "EMF Reader":
+                    print("You use the EMF Reader. (EMF logic not implemented in this version.)")
+                    regular()
+                elif itemUsed == "Video Camera":
+                    videoCamera()
+                elif itemUsed == "Spirit Box":
+                    print("You use the Spirit Box. (Spirit Box logic not implemented in this version.)")
+                    regular()
+            else:
+                print("Invalid choice.")
+                regular()
+        else:
+            print("You have no useable items.")
+            regular()
+
+    def journal():
+        print("You look in your journal.")
+        sectionChoice = get_int("What section of the journal do you want to see? 1 - Ghosts, 2 - Evidence, 3 - Equipment. >", default=1)
+        print("Journal functionality not implemented in this demo.")
+        regular()
+
+    def ghostPos(roomWidth, roomHeight):
+        ghostPositionX = random.randint(0, roomWidth - 1)
+        ghostPositionY = random.randint(0, roomHeight - 1)
+        return [ghostPositionY, ghostPositionX]
+
+    # Init ghost age and welcome and start main loop
     ghostAge(randomPicker9000("ghost"), True)
-
-    # Welcome and start main loop
-    print("PyScript runtime loaded — executing game code...")
     print("Welcome to Spooky Ghost Game!")
     print("Your goal is to identify the ghost and survive.")
     regular(True)
+    # End of start_game (full game runs from here)
 
+# Enable the button in the DOM
+def enable_button(evt=None):
+    try:
+        btn = document.getElementById("start-btn")
+        if btn:
+            btn.removeAttribute("disabled")
+    except Exception as e:
+        print("Failed to enable start button:", e)
+
+enable_button()
 </py-script>
-
-<!--
-  Robust runner detection & Start button wiring.
-  This replaces Python-side create_proxy usage and handles pyodide/pyscript API differences safely.
--->
-<script>
-(function() {
-  function findRunner() {
-    // Prefer pyodide.runPython/runPythonAsync
-    if (window.pyodide) {
-      if (typeof window.pyodide.runPython === 'function') {
-        return { type: 'sync', call: (code) => window.pyodide.runPython(code) };
-      }
-      if (typeof window.pyodide.runPythonAsync === 'function') {
-        return { type: 'async', call: (code) => window.pyodide.runPythonAsync(code) };
-      }
-    }
-
-    // Fallback to pyscript namespace (some PyScript builds)
-    if (window.pyscript) {
-      if (typeof window.pyscript.runPython === 'function') {
-        return { type: 'sync', call: (code) => window.pyscript.runPython(code) };
-      }
-      if (typeof window.pyscript.runPythonAsync === 'function') {
-        return { type: 'async', call: (code) => window.pyscript.runPythonAsync(code) };
-      }
-      if (window.pyscript.interpreter && typeof window.pyscript.interpreter.run === 'function') {
-        return { type: 'sync', call: (code) => window.pyscript.interpreter.run(code) };
-      }
-    }
-
-    return null;
-  }
-
-  const interval = setInterval(async () => {
-    const runner = findRunner();
-    const btn = document.getElementById('startBtn');
-
-    if (btn && runner) {
-      btn.removeAttribute('disabled');
-
-      // Remove any previous handlers to avoid double-binding
-      btn.onclick = null;
-
-      btn.addEventListener('click', async () => {
-        try {
-          if (runner.type === 'sync') {
-            runner.call('start_game()');
-          } else {
-            // async runner returns a Promise
-            await runner.call('start_game()');
-          }
-        } catch (err) {
-          console.error('Error starting game via runner:', err);
-          alert('Failed to start game — see console for details.');
-        }
-      });
-
-      clearInterval(interval);
-    }
-
-    // keep polling up to timeout
-  }, 250);
-
-  // Safety: stop polling after 10s
-  setTimeout(() => clearInterval(interval), 10000);
-})();
-</script>
 
 </body>
 </html>
