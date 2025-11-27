@@ -73,6 +73,56 @@
         statusElem.innerHTML = "Loading PyScript runtime...";
       }
     });
+
+    /**
+     * startGameFromJs - Resilient JS wrapper to call Python start_game().
+     * Only attempts to execute Python code once PyScript/pyodide is ready.
+     * This avoids TypeError when PyScript internals aren't initialized.
+     */
+    function startGameFromJs() {
+      const statusElem = document.getElementById("status");
+
+      function setStatus(html, cls) {
+        if (!statusElem) return;
+        statusElem.innerHTML = html;
+        statusElem.classList.remove('ok', 'warn');
+        if (cls) statusElem.classList.add(cls);
+      }
+
+      // Check if PyScript marked itself ready
+      if (!window.__pyscript_ready) {
+        setStatus("PyScript is not ready yet. Please wait...", "warn");
+        console.warn("startGameFromJs: PyScript not ready (window.__pyscript_ready is not set).");
+        return;
+      }
+
+      // Check for pyodide runtime
+      if (!window.pyodide) {
+        setStatus("Pyodide runtime not available. Please reload the page.", "warn");
+        console.error("startGameFromJs: window.pyodide is not defined.");
+        return;
+      }
+
+      setStatus("Starting game...", "ok");
+
+      // Use runPythonAsync if available, else fall back to runPython
+      try {
+        if (typeof window.pyodide.runPythonAsync === 'function') {
+          window.pyodide.runPythonAsync('start_game()').catch(function(err) {
+            console.error("Error running start_game() via runPythonAsync:", err);
+            setStatus("Error starting game: " + err.message, "warn");
+          });
+        } else if (typeof window.pyodide.runPython === 'function') {
+          window.pyodide.runPython('start_game()');
+        } else {
+          setStatus("Pyodide API not found. Cannot start game.", "warn");
+          console.error("startGameFromJs: pyodide.runPythonAsync and pyodide.runPython are not available.");
+        }
+      } catch (err) {
+        console.error("Error running start_game():", err);
+        setStatus("Error starting game: " + err.message, "warn");
+      }
+    }
   </script>
 </head>
 <body>
@@ -80,7 +130,7 @@
 <h1>Spooky Ghost Game</h1>
 <div id="status">Loading PyScript runtime...</div>
 
-<button id="start-btn" disabled py-click="start_game()">Start Game</button>
+<button id="start-btn" disabled onclick="startGameFromJs()">Start Game</button>
 
 <div id="output"></div>
 
@@ -967,12 +1017,14 @@ def start_game():
     regular(True)
     # End of start_game (full game runs from here)
 
-# Enable the button in the DOM
+# Enable the button in the DOM and mark PyScript as ready
 def enable_button(evt=None):
     try:
         btn = document.getElementById("start-btn")
         if btn:
             btn.removeAttribute("disabled")
+        # Set a JS-visible flag so JS knows PyScript finished initialization
+        window.__pyscript_ready = True
     except Exception as e:
         print("Failed to enable start button:", e)
 
