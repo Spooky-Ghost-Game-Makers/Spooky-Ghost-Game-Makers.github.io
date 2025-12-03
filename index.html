@@ -755,7 +755,12 @@ def start_game(event=None):
     ################################################################################################################
     def regular(showLocation=True):
         global location, isHiding, ghostLocationRoom
-        
+
+        try:
+              print(location)
+        except:
+              location = "Truck"
+              
         if showLocation:
             print("You are currently in", location)
         
