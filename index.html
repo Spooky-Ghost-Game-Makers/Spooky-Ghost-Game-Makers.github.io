@@ -717,7 +717,7 @@ def start_game():
         if pawWishes != 0:
             wishCategory = get_int("What sort of wish do you want to make? 1> A wish related to the ghost 2> A miscelaneous wish 3> A special wish 4> No wish ", default=4)
             if wishCategory == 1:
-                wish = get_int("What do you wish the ghost to do? 1> Wish for the ghost to pause 2> Wish for the ghost to move 3> Wish to stop the ghost from moving 4> No wish 5> Ask what each wi[...]
+                wish = get_int("What do you wish the ghost to do? 1> Wish for the ghost to pause 2> Wish for the ghost to move 3> Wish to stop the ghost from moving 4> No wish >")
             elif wishCategory == 2:
                 wish = get_int("What would you like to wish? 1> Wish for knowledge 2> Wish for sanity 3> Wish to leave 4> no wish 5> Ask what each wish does ", default=4)
             elif wishCategory == 3:
