@@ -73,11 +73,6 @@
         statusElem.innerHTML = "Loading PyScript runtime...";
       }
     });
-
-    function startGameFromJs() {
-  // Just run the start_game() function in your PyScript Python code (already defined at the bottom)
-  pyscript.interpreter.run('start_game()');
-}
   </script>
 </head>
 <body>
@@ -85,7 +80,7 @@
 <h1>Spooky Ghost Game</h1>
 <div id="status">Loading PyScript runtime...</div>
 
-<button id="start-btn" disabled onclick="startGameFromJs()">Start Game</button>
+<button id="start-btn" disabled py-click="start_game">Start Game</button>
 
 <div id="output"></div>
 
