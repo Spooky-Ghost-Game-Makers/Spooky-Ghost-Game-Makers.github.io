@@ -97,78 +97,21 @@ import random
 import time as time_module
 import string
 
-# Output helpers
-out_elem = document.getElementById("output")
-
-def write(s=""):
-    out_elem.innerText = out_elem.innerText + str(s) + ("\n" if not str(s).endswith("\n") else "")
-    out_elem.scrollTop = out_elem.scrollHeight
-
-def print(*args, sep=" ", end="\n"):
-    text = sep.join(str(a) for a in args) + ("" if end == "" else end)
-    write(text)
-
-def get_input(msg="> "):
-    res = window.prompt(msg)
-    if res is None:
-        return ""
-    return res.strip()
-
-def get_int(msg="> ", default=0):
-    while True:
-        res = get_input(msg)
-        if res == "":
-            return default
-        try:
-            return int(res)
-        except:
-            print("Please enter a valid number.")
-
-# The entire adapted game is wrapped in start_game so it runs only on button press.
-def start_game(event=None):
-        #importing external code to use
-    import random
-    import time as time_module
-    import string
-    
-    booleanThing = ["yes", "no"]
-    
-    #This randomizes basically everything that needs to be randomized. It also returns important info if you call it with the right parameters. USE THIS INSTEAD OF GLOBAL, it will save so much time in the future.
-    def randomPicker9000(randomy):
-        global ghost, ghostRoom, weather, cursedItem, ghostName, hidingPlaces
-        if randomy == True:
-            ghostRoom = rooms[random.randint(0, len(rooms) - 1)]
-            ghost = ghosts[random.randint(0, len(ghosts) - 1)][0]
-            weather = weathers[random.randint(0, len(weathers) - 1)]
-            cursedItem = cursedItems[random.randint(0, len(cursedItems) - 1)]
-            ghostName = firstNames[random.randint(0, len(firstNames) - 1)] + " " + lastNames[
-                random.randint(0, len(lastNames) - 1)]
-            hidingPlaces = {
-                "Entrance Hallway": [random.choice(booleanThing), False],
-                "Kid's Bedroom": [random.choice(booleanThing), False],
-                "Garage": [random.choice(booleanThing), False],
-                "Dining Room": [random.choice(booleanThing), False],
-                "Kitchen": [random.choice(booleanThing), False],
-                "Basement": [random.choice(booleanThing), False],
-                "Living Room": [random.choice(booleanThing), False],
-                "Master Bedroom": [random.choice(booleanThing), False],
-                "Bathroom": [random.choice(booleanThing), False],
-                "En Suite": [random.choice(booleanThing), False]
-            }
-        elif randomy == "name":
-            return ghostName
-        elif randomy == "room":
-            return ghostRoom
-        elif randomy == "ghost":
-            return ghost
-        elif randomy == "weather":
-            return weather
-        elif randomy == "cursedItem":
-            return cursedItem
-    
-    
-    #BOY DO I LOVE DICTIONARIES (and lists i guess)
-    roomSizes = {
+location = "Truck"
+gameTime = 0
+events = 0
+playerInventory = ["", "", ""]
+ouijaEvents = 0
+musicEvents = 0
+mirrorEvents = 0
+huntActive = False
+isHiding = False
+truckStuff = []
+huntTurnsRemaining = 0
+huntGhostType = None
+huntIsCursed = False
+  
+roomSizes = {
         "Entrance Hallway": [3, 15],
         "Kid's Bedroom": [8,8],
         "Garage": [11, 9],
@@ -242,24 +185,83 @@ def start_game(event=None):
     
     roomDrawings = {"Entrance Hallway": [[]], "Kid's Bedroom": [[]], "Garage": [[]], "Dining Room": [[]], "Kitchen": [[]], "Basement": [[]], "Living Room": [[]],
              "Master Bedroom": [[]], "Bathroom": [[]], "En Suite": [[]]}
+
+# Output helpers
+out_elem = document.getElementById("output")
+
+def write(s=""):
+    out_elem.innerText = out_elem.innerText + str(s) + ("\n" if not str(s).endswith("\n") else "")
+    out_elem.scrollTop = out_elem.scrollHeight
+
+def print(*args, sep=" ", end="\n"):
+    text = sep.join(str(a) for a in args) + ("" if end == "" else end)
+    write(text)
+
+def get_input(msg="> "):
+    res = window.prompt(msg)
+    if res is None:
+        return ""
+    return res.strip()
+
+def get_int(msg="> ", default=0):
+    while True:
+        res = get_input(msg)
+        if res == "":
+            return default
+        try:
+            return int(res)
+        except:
+            print("Please enter a valid number.")
+
+# The entire adapted game is wrapped in start_game so it runs only on button press.
+def start_game(event=None):
+        #importing external code to use
+    import random
+    import time as time_module
+    import string
+    
+    booleanThing = ["yes", "no"]
+    
+    #This randomizes basically everything that needs to be randomized. It also returns important info if you call it with the right parameters. USE THIS INSTEAD OF GLOBAL, it will save so much time in the future.
+    def randomPicker9000(randomy):
+        global ghost, ghostRoom, weather, cursedItem, ghostName, hidingPlaces
+        if randomy == True:
+            ghostRoom = rooms[random.randint(0, len(rooms) - 1)]
+            ghost = ghosts[random.randint(0, len(ghosts) - 1)][0]
+            weather = weathers[random.randint(0, len(weathers) - 1)]
+            cursedItem = cursedItems[random.randint(0, len(cursedItems) - 1)]
+            ghostName = firstNames[random.randint(0, len(firstNames) - 1)] + " " + lastNames[
+                random.randint(0, len(lastNames) - 1)]
+            hidingPlaces = {
+                "Entrance Hallway": [random.choice(booleanThing), False],
+                "Kid's Bedroom": [random.choice(booleanThing), False],
+                "Garage": [random.choice(booleanThing), False],
+                "Dining Room": [random.choice(booleanThing), False],
+                "Kitchen": [random.choice(booleanThing), False],
+                "Basement": [random.choice(booleanThing), False],
+                "Living Room": [random.choice(booleanThing), False],
+                "Master Bedroom": [random.choice(booleanThing), False],
+                "Bathroom": [random.choice(booleanThing), False],
+                "En Suite": [random.choice(booleanThing), False]
+            }
+        elif randomy == "name":
+            return ghostName
+        elif randomy == "room":
+            return ghostRoom
+        elif randomy == "ghost":
+            return ghost
+        elif randomy == "weather":
+            return weather
+        elif randomy == "cursedItem":
+            return cursedItem
+    
+    
+    #BOY DO I LOVE DICTIONARIES (and lists i guess)
+    
     
     # Variables and initial randomization
     randomPicker9000(True)
-    ghostLocationRoom = randomPicker9000("room")
-    location = "Truck"
-    gameTime = 0
-    events = 0
-    playerInventory = ["", "", ""]
-    ouijaEvents = 0
-    musicEvents = 0
-    mirrorEvents = 0
-    huntActive = False
-    isHiding = False
-    truckStuff = []
-    huntTurnsRemaining = 0
-    huntGhostType = None
-    huntIsCursed = False
-    
+    ghostLocationRoom = randomPicker9000("room") 
     
     #returns spawn location of cursed item put in.
     def cursedItemSpawn(cursedItem):
@@ -755,11 +757,6 @@ def start_game(event=None):
     ################################################################################################################
     def regular(showLocation=True):
         global location, isHiding, ghostLocationRoom
-
-        try:
-              print(location)
-        except:
-              location = "Truck"
               
         if showLocation:
             print("You are currently in", location)
