@@ -96,7 +96,7 @@ from js import window, document
 import random
 import time as time_module
 import string
-
+  
 location = "Truck"
 gameTime = 0
 events = 0
@@ -202,7 +202,13 @@ def get_input(msg="> "):
     if res is None:
         return ""
     return res.strip()
-
+  
+# Replace the builtin input with a browser prompt so existing code that calls input() keeps working.
+def input(prompt=""):
+    res = window.prompt(prompt)
+    # window.prompt returns null if the user cancels; convert that to an empty string
+    return "" if res is None else str(res)
+  
 def get_int(msg="> ", default=0):
     while True:
         res = get_input(msg)
