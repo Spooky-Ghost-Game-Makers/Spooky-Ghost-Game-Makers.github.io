@@ -73,6 +73,54 @@
         statusElem.innerHTML = "Loading PyScript runtime...";
       }
     });
+
+    /**
+     * JS Helper: Enable Start button when PyScript runtime successfully loads
+     * and capture uncaught errors to #output to aid debugging.
+     */
+    (function() {
+      // Capture uncaught errors and display them in #output for debugging
+      window.addEventListener("error", function(e) {
+        var out = document.getElementById("output");
+        if (out) {
+          out.innerText += "\n[JS Error] " + (e.message || e) + (e.filename ? " at " + e.filename + ":" + e.lineno : "") + "\n";
+          out.scrollTop = out.scrollHeight;
+        }
+      });
+      window.addEventListener("unhandledrejection", function(e) {
+        var out = document.getElementById("output");
+        if (out) {
+          out.innerText += "\n[Promise Rejection] " + (e.reason || e) + "\n";
+          out.scrollTop = out.scrollHeight;
+        }
+      });
+
+      // Poll for PyScript readiness and enable Start button when ready
+      var pollCount = 0;
+      var maxPolls = 100; // 10 seconds max
+      function checkPyScriptReady() {
+        var btn = document.getElementById("start-btn");
+        if (!btn) return;
+        // Check if PyScript set the __pyscript_ready flag or if the button is already enabled
+        if (window.__pyscript_ready || !btn.hasAttribute("disabled")) {
+          var statusElem = document.getElementById("status");
+          if (statusElem && !statusElem.classList.contains("warn")) {
+            statusElem.innerHTML = "PyScript ready. <span class='ok'>Click Start Game to begin!</span>";
+            statusElem.classList.add("ok");
+          }
+          return;
+        }
+        pollCount++;
+        if (pollCount < maxPolls) {
+          setTimeout(checkPyScriptReady, 100);
+        }
+      }
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", function() { setTimeout(checkPyScriptReady, 500); });
+      } else {
+        setTimeout(checkPyScriptReady, 500);
+      }
+    })();
   </script>
 </head>
 <body>
@@ -198,6 +246,9 @@ def print(*args, sep=" ", end="\n"):
     write(text)
 
 def get_input(msg="> "):
+    # Write prompt text to #output before showing the browser prompt
+    write(msg)
+    out_elem.scrollTop = out_elem.scrollHeight
     res = window.prompt(msg)
     if res is None:
         return ""
@@ -205,6 +256,10 @@ def get_input(msg="> "):
   
 # Replace the builtin input with a browser prompt so existing code that calls input() keeps working.
 def input(prompt=""):
+    # Write prompt text to #output before showing the browser prompt
+    if prompt:
+        write(prompt)
+        out_elem.scrollTop = out_elem.scrollHeight
     res = window.prompt(prompt)
     # window.prompt returns null if the user cancels; convert that to an empty string
     return "" if res is None else str(res)
@@ -310,12 +365,12 @@ def start_game(event=None):
     #thermometer, prints temperature.
     def thermometer():
         print("The temperature it reads is: ", temperatures())
-        regular()
+        # Return to main loop instead of recursive call
     
     
     #UV light, random chance to find uv if the ghost is in the room and has uv as evidence.
     def UV():
-        object = random.choice("window", "door")
+        object = random.choice(["window", "door"])
         if ghostLocationRoom == location:
             UVChance = random.randint(0,2)
             if UVChance == 0:
@@ -331,7 +386,7 @@ def start_game(event=None):
                 print("You look around the room with the UV light, but find nothing.")
         elif ghostLocationRoom != location:
             print("You look around the room with a UV light, but you find nothing.")
-        regular()
+        # Return to main loop instead of recursive call
     
     
     #video camera, random chance to find ghost orbs if the ghost is in the room and has orbs as evidence.
@@ -342,16 +397,16 @@ def start_game(event=None):
                 for row in ghosts:
                     if randomPicker9000("ghost") in row:
                         if "Ghost Orbs" in row:
-                            print("You look around the room with the camera, and you see a small glowing sphere dancig around the room.")
+                            print("You look around the room with the camera, and you see a small glowing sphere dancing around the room.")
                         else:
                             print("You look around the room with the camera, but you find nothing.")
                     else:
                         print("You look around the room with the camera, but you find nothing.")
             elif orbsChance != 0:
-                print("You look around the room with ththe camera, but find nothing.")
+                print("You look around the room with the camera, but find nothing.")
         elif ghostLocationRoom != location:
             print("You look around the room with the camera, but you find nothing.")
-        regular()
+        # Return to main loop instead of recursive call
     
     
     #all the item placing code, painful to make.
@@ -404,15 +459,15 @@ def start_game(event=None):
         choice = input("> ").strip()
         if choice not in ["1", "2", "3"]:
             print("Invalid slot.")
-            return regular()
+            return  # Return to main loop instead of recursive call
         choice = int(choice) - 1
         if items[choice] == "":
             print("Slot is empty.")
-            return regular()
+            return  # Return to main loop instead of recursive call
         itemToPlace = items[choice]
         if itemToPlace not in ["EMF Reader", "Ghost Writing Book", "DOTS Projector"]:
             print("You cannot place this item.")
-            return regular()
+            return  # Return to main loop instead of recursive call
         height, width = roomSizes[room]
         roomDraw(width, height)
         coords = coordinates(width, height)
@@ -421,12 +476,12 @@ def start_game(event=None):
             roomDrawings[room][coords[0]][coords[1]] = letter
         except IndexError:
             print("Placement failed due to grid bounds error.")
-            return regular()
+            return  # Return to main loop instead of recursive call
         playerInventory[choice] = ""
         tick(True)
         print(f"Placed {itemToPlace} at {string.ascii_uppercase[coords[0]]}{coords[1]+1}")
         roomDraw(width, height)
-        return regular()
+        # Return to main loop instead of recursive call
     
     
     def itemLetter(item):
@@ -459,7 +514,7 @@ def start_game(event=None):
         huntIsCursed = cursed
         huntTurnsRemaining = 10 if cursed else 5
         print("All the lights flicker and all of the equipment in the room begins to malfunction in a flurry of beeps and boops. A hunt has begun.")
-        regular()
+        # Return to main loop instead of recursive call
     
     
     #various code tidbits for the hunt, ghost chasing player if deogen, ghost wandering in a hunt if not. Could be cool if the ghost chases the player after spotting them in an ajacent room.
@@ -730,8 +785,8 @@ def start_game(event=None):
             spaceAvailable = inventoryCheck("Space")
             if spaceAvailable is None:
                 print("Your inventory is full!")
-                # Exit the truck UI and go back to regular flow instead of continuing with a None index
-                return regular()
+                # Exit the truck UI and go back to regular flow
+                return
             stuffTaken = input("What item do you want to take? 1 - EMF Reader, 2 - Thermometer, 3 - Spirit Box, 4 - UV Light, 5 - Ghost Writing Book, 6 - DOTS Projector, 7 - Video Camera >").strip()
             choices = {
                 "1": "EMF Reader",
@@ -752,108 +807,130 @@ def start_game(event=None):
             done1 = input("Do you want to take another item? Y/N >").strip()
             if done1.lower() == "n":
                 done = True
-        return regular()
+        # Return to main loop instead of recursive call
     
-    #for denying the player actions if they are in the truck.
-    def truckDeny():
-        print("You cannot do this right now, as you are in the truck outside.")
-        regular()
+    # truckDeny() is no longer needed - its logic is inlined in the main loop
     
     
     ################################################################################################################
     def regular(showLocation=True):
         global location, isHiding, ghostLocationRoom
-              
-        if showLocation:
-            print("You are currently in", location)
         
-        if huntActive == True:
-            print("Reminder: There is a hunt going on.")
-        
-        if isHiding == True:
-            choice1 = input("You are currently hiding in " + location + ", would you like to leave the hiding spot? (Y/N) >")
-            if choice1.lower() == "y":
-                isHiding = False
-                print("You leave your hiding spot.")
-                regular()
-            else:
-                print("So be it. You stay in the spot and wait for a short while.")
+        # Use an iterative while loop instead of recursion to prevent prompt cascades
+        _showLoc = showLocation
+        while True:
+            if _showLoc:
+                print("You are currently in", location)
+            
+            if huntActive == True:
+                print("Reminder: There is a hunt going on.")
+            
+            if isHiding == True:
+                choice1 = input("You are currently hiding in " + location + ", would you like to leave the hiding spot? (Y/N) >")
+                if choice1.lower() == "y":
+                    isHiding = False
+                    print("You leave your hiding spot.")
+                    _showLoc = True
+                    continue
+                else:
+                    print("So be it. You stay in the spot and wait for a short while.")
+                    tick(True)
+                    if ghostLocationRoom == location:
+                        print("You hear footsteps walking past.")
+                    _showLoc = False
+                    continue
+            
+            choice = input("What do you want to do? (Type help for help) >")
+            
+            if choice.lower() == "help":
+                print("Possible Things to do: Move, Place Item, Use item, Inspect Room, Hide, Wait, Pickup Item (If in the truck).")
+                _showLoc = False
+                continue
+            elif "inspect" in choice.lower():
+                tick(True)  # Inspecting a room takes time
+                match location:
+                    case "Living Room":
+                        print("The room contains sofas, TVs and a nice looking fireplace.")
+                    case "Garage":
+                        print("The room contains a lot of tools and a random Volkswagen Beetle")
+                    case "Bathroom":
+                        print("The room contains a collection on highly specific rubber duckies and has a variety of soaps. It also has a bath.")
+                    case "Kid's Bedroom":
+                        print("The room contains a model Messerschmitt BF 109 and a lot of other collections like yugioh cards. (It also has child sized clothes and a child sized bed).")
+                    case "Dining Room":
+                        print("The room contains a large table decorated with plates and an empty vase.")
+                    case "Kitchen":
+                        print("The room contains a variety of cooking appliances and many sharp knife shaped objects.")
+                    case "Basement":
+                        print("The room features a lot of loose wires and a variety of boxes containing stuff.")
+                    case "Master Bedroom":
+                        print("The room features a giant bed and a small entrance to a small bathroom. It is a massive bedroom.")
+                    case "En Suite":
+                        print("The room is small, yet it is significantly cleaner than its larger counterpart")
+                    case "Entrance Hallway":
+                        print("The room is just a hallway. It has a lot of doors that lead to other rooms.")
+                    case "Truck":
+                        print("You are in the truck. Nothing special here, just the items you have brung with you for the ghost hunting. You take a look outside, the weather is currently: ", randomPicker9000("weather"), ".")
+                
+                # Check for hiding places
+                if location == "Truck":
+                    print("You cannot do this right now, as you are in the truck outside.")
+                    _showLoc = False
+                    continue
+                if hidingPlaces[location][0] == "yes" and hidingPlaces[location][1] == False:
+                    hidingPlaces[location][1] = True
+                    print("You spot a hiding place.")
+                elif hidingPlaces[location][0] == "no" and hidingPlaces[location][1] == False:
+                    hidingPlaces[location][1] = "Nope"
+                    print("There doesn't seem to be any good hiding spots here.")
+                
+                # Check for cursed items
+                if location == cursedItemSpawn(randomPicker9000("cursedItem")):
+                    print(f"You notice a {randomPicker9000('cursedItem')} in this room!")
+                
+                _showLoc = False
+                continue
+            elif "hide" in choice.lower():
+                if location == "Truck":
+                    print("You cannot do this right now, as you are in the truck outside.")
+                    _showLoc = False
+                    continue
+                checkForHidingSpot()
+                _showLoc = False
+                continue
+            elif "move" in choice.lower():
+                location = movement(location)
+                _showLoc = True
+                continue
+            elif "wait" in choice.lower():
                 tick(True)
-                if ghostLocationRoom == location:
-                    print("You hear footsteps walking past.")
-                regular()
-        
-        choice = input("What do you want to do? (Type help for help) >")
-        
-        if choice.lower() == "help":
-            print("Possible Things to do: Move, Place Item, Use item, Inspect Room, Hide, Wait, Pickup Item (If in the truck).")
-            regular(False)
-        elif "inspect" in choice.lower():
-            tick(True)  # Inspecting a room takes time
-            match location:
-                case "Living Room":
-                    print("The room contains sofas, TVs and a nice looking fireplace.")
-                case "Garage":
-                    print("The room contains a lot of tools and a random Volkswagen Beetle")
-                case "Bathroom":
-                    print("The room contains a collection on highly specific rubber duckies and has a variety of soaps. It also has a bath.")
-                case "Kid's Bedroom":
-                    print("The room contains a model Messerschmitt BF 109 and a lot of other collections like yugioh cards. (It also has child sized clothes and a child sized bed).")
-                case "Dining Room":
-                    print("The room contains a large table decorated with plates and an empty vase.")
-                case "Kitchen":
-                    print("The room contains a variety of cooking appliances and many sharp knife shaped objects.")
-                case "Basement":
-                    print("The room features a lot of loose wires and a variety of boxes containing stuff.")
-                case "Master Bedroom":
-                    print("The room features a giant bed and a small entrance to a small bathroom. It is a massive bedroom.")
-                case "En Suite":
-                    print("The room is small, yet it is significantly cleaner than its larger counterpart")
-                case "Entrance Hallway":
-                    print("The room is just a hallway. It has a lot of doors that lead to other rooms.")
-                case "Truck":
-                    print("You are in the truck. Nothing special here, just the items you have brung with you for the ghost hunting. You take a look outside, the weather is currently: ", randomPicker9000("weather"), ".")
-            
-            # Check for hiding places
-            if location == "Truck":
-                truckDeny()
-            if hidingPlaces[location][0] == "yes" and hidingPlaces[location][1] == False:
-                hidingPlaces[location][1] = True
-                print("You spot a hiding place.")
-            elif hidingPlaces[location][0] == "no" and hidingPlaces[location][1] == False:
-                hidingPlaces[location][1] = "Nope"
-                print("There doesn't seem to be any good hiding spots here.")
-            
-            # Check for cursed items
-            if location == cursedItemSpawn(randomPicker9000("cursedItem")):
-                print(f"You notice a {randomPicker9000('cursedItem')} in this room!")
-            
-            regular(False)
-        elif "hide" in choice.lower():
-            if location == "Truck":
-                truckDeny()
-            checkForHidingSpot()
-            regular(False)
-        elif "move" in choice.lower():
-            location = movement(location)
-            regular(True)
-        elif "wait" in choice.lower():
-            tick(True)
-            print("You wait for a moment...")
-            regular(False)
-        elif "place" in choice.lower():
-            if location == "Truck":
-                truckDeny()
-            itemPlace()
-        elif "use" in choice.lower():
-            if location == "Truck":
-                truckDeny()
-            itemUseMenu()
-        elif "pick" in choice.lower():
-            truck()
-        else:
-            print("Invalid action.")
-            regular(False)
+                print("You wait for a moment...")
+                _showLoc = False
+                continue
+            elif "place" in choice.lower():
+                if location == "Truck":
+                    print("You cannot do this right now, as you are in the truck outside.")
+                    _showLoc = False
+                    continue
+                itemPlace()
+                _showLoc = False
+                continue
+            elif "use" in choice.lower():
+                if location == "Truck":
+                    print("You cannot do this right now, as you are in the truck outside.")
+                    _showLoc = False
+                    continue
+                itemUseMenu()
+                _showLoc = False
+                continue
+            elif "pick" in choice.lower():
+                truck()
+                _showLoc = False
+                continue
+            else:
+                print("Invalid action.")
+                _showLoc = False
+                continue
     ################################################################################################################
     
     
@@ -1034,7 +1111,7 @@ def start_game(event=None):
                 spiritBox()
         else:
             print("You have no useable items.")
-            regular()
+        # Return to main loop instead of recursive call
     
     
     def journal():
